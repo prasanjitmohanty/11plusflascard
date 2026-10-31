@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#174d43">
+  <meta name="description" content="2027 preparation edition: original UK 11+ Maths and English lessons, tests and flashcards for exams taken in 2027. Works completely offline.">
+  <title>Brightlane | 2027 11+ preparation</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="topics.js"></script>
+  <script defer src="test-bank.js"></script>
+  <script defer src="flashcards.js"></script>
+  <script defer src="study-materials.js"></script>
+  <script defer src="progress.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="#home"><span class="brand-icon" aria-hidden="true">b.</span> brightlane <span class="brand-tag">2027 PREPARATION</span></a>
+    <span class="offline-badge"><span aria-hidden="true"></span> Ready for offline learning</span>
+  </header>
+  <div id="global-notice" class="global-notice" role="status" hidden></div>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Study navigation">
+      <p class="nav-label">YOUR STUDY SPACE</p>
+      <nav class="primary-nav" aria-label="Main">
+        <a href="#home" data-page="home"><span aria-hidden="true">&#8962;</span> Overview</a>
+        <a href="#maths" data-page="maths"><span aria-hidden="true">+</span> Maths <span class="nav-count">18</span></a>
+        <a href="#english" data-page="english"><span aria-hidden="true">Aa</span> English <span class="nav-count">12</span></a>
+        <a href="#practice" data-page="practice"><span aria-hidden="true">&#10003;</span> Mixed practice</a>
+        <a href="#tests" data-page="tests"><span aria-hidden="true">&#9638;</span> Practice tests</a>
+        <a href="#flashcards" data-page="flashcards"><span aria-hidden="true">&#8646;</span> Flashcards</a>
+        <a href="#materials" data-page="materials"><span aria-hidden="true">&#9635;</span> Study materials</a>
+        <a href="#dashboard" data-page="dashboard"><span aria-hidden="true">&#9673;</span> Progress</a>
+        <a href="#planner" data-page="planner"><span aria-hidden="true">&#9633;</span> Study planner</a>
+      </nav>
+      <div class="progress-box">
+        <p class="nav-label">SMALL STEPS, REAL PROGRESS</p>
+        <strong id="progress-count">0 of 30 lessons studied</strong>
+        <progress id="study-progress" max="30" value="0" aria-label="Lessons studied"></progress>
+        <p id="storage-note">Progress stays in this browser, on this device.</p>
+        <button id="reset-progress" class="text-button" type="button">Reset progress</button>
+        <div id="reset-confirm" hidden><p>Clear all lessons, results, ratings and planner data? Export a backup from Progress first if needed.</p><button id="confirm-reset" type="button" class="small-button">Yes, clear</button> <button id="cancel-reset" type="button" class="text-button">Cancel</button></div>
+      </div>
+      <div class="sidebar-note"><span aria-hidden="true">&#10022;</span><p>Understanding beats rushing.<br>Try a little, often.</p></div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <footer>Made for curious minds. Original learning material in British English. No account. No adverts. No internet needed.</footer>
+  <noscript><div class="noscript">Enable JavaScript to view the bundled lessons and interactive practice. No internet connection is required.</div></noscript>
+</body>
+</html>
