@@ -1,23 +1,36 @@
-# Brightlane — 2027 preparation edition
+# Brightlane — offline UK 11+ preparation
 
-This offline UK 11+ Maths and English edition supports preparation for **exams
-taken in 2027**. The preparation/exam year is **not a universal school entry
-year**. Check each target school's or exam provider's current guidance for
-requirements, exam dates and the relevant entry-year timetable.
+This original Maths and English preparation toolkit is tailored to common
+formats for **Tiffin Girls', Nonsuch and Wallington High School for Girls**,
+with a school-linked guide for both stages. The current guide is for the
+**September 2028 entry cycle**, whose exams are expected in autumn 2027; check
+each school's latest admissions information before acting. A 2027 preparation
+label is not a universal entry year, syllabus, or promise that formats and
+arrangements will remain unchanged.
 
-The edition label does not assert a new official 2027 syllabus, changed exam
-format or changed admissions requirements. The original foundation lessons,
-practice tests and flashcards are retained; this is not a school-specific
-admissions guide or a guarantee of coverage for every exam.
+The scenario bank below offers **original exam-style situations** in familiar
+Maths and English preparation formats. It is **not an archive of actual past
+papers from 2017–2026**: no historical year or school/provider is attributed
+to any scenario. This site is not a complete national archive of 11+ papers
+and no licensed historic papers were supplied to reproduce. Use the scenarios
+as new practice, not as evidence of what appeared in a particular past exam.
 
 A standalone, responsive Maths and English study website. It has **30 lessons,
 30 worked examples and 90 lesson-practice questions**, plus **60 separate test
-questions** and **12 longer-comprehension questions**: 162 unique, explained
-questions in total. **60 flashcards** cover every lesson topic. The Study
-materials library adds 30 topic revision sheets, 30 concise subject reference
-cards, three original longer passages, six writing prompts with planning
-scaffolds and self-checks, and printable three-question worksheets for all 30
-topics (the worksheet questions reuse the original lesson bank). A local
+questions** and **12 longer-comprehension questions**. **32 original scenarios**
+(16 per subject), with 64 explained subquestions, bring that foundation bank to
+**226 unique questions**. The school-format banks add 65 SET Maths and 68 SET
+English questions, 30 written Stage 2 Maths problems, 16 Stage 2 comprehension
+questions, 24 Tiffin-style digit-entry items and 20 unfamiliar-format Maths
+items: **449 unique question tasks across the site** (excluding eight writing
+prompts and reused worksheet items). The saved practice/progress registry
+contains **403** questions; some lesson and print-material items are presented
+outside that registry. There are **154 flashcards**: 60 general topic cards and
+94 school/exam-format cards. The Study materials library adds 30 topic revision sheets,
+30 concise subject reference cards, three original longer passages, six writing
+prompts with planning scaffolds and self-checks, and printable three-question
+worksheets for all 30 topics (the worksheet questions reuse the original lesson
+bank). A local
 evidence dashboard, saved results, targeted revision, optional timer, user-set
 study planner and validated progress backups complete the toolkit. All passages
 and questions are original. There are no accounts, adverts, runtime
@@ -27,11 +40,12 @@ dependencies, external fonts, analytics or network requests.
 
 1. Download and extract the complete website ZIP, or copy this repository folder.
 2. Open **index.html** in a modern browser (Chrome, Edge, Firefox or Safari).
-3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`, `flashcards.js`, `study-materials.js`, `progress.js` and `app.js` together. No installation,
+3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`, `flashcards.js`, `study-materials.js`, `scenario-bank.js`, `sutton-bank.js`, `progress.js` and `app.js` together. No installation,
    server, internet connection or service worker is required.
 
-Lessons, search, topic quizzes, mixed practice, tests, flashcards and study
-materials work directly using `file://`.
+Lessons, search, topic quizzes, mixed practice, tests, flashcards, scenario
+practice, school-format practice, exam tips and study materials work directly
+using `file://`.
 JavaScript must be enabled. On mobile, use a browser that supports opening local
 HTML folders; a file manager's HTML preview may not run scripts. A desktop browser
 is the most reliable direct-file route.
@@ -96,10 +110,12 @@ papers, standardised scores or predictions of admission.
 
 ## Flashcards
 
-Choose **Flashcards** in the navigation or overview. There are 60 original recall
-cards: 36 Maths and 24 English, with two cards for each of the 30 lesson topics.
-They use separate prompts from the practice tests, with substantive answers and
-explanations. Select both subjects, one subject or a particular topic.
+Choose **Flashcards** in the navigation or overview. There are 154 original
+recall cards: 60 general topic cards (36 Maths and 24 English, two for each of
+the 30 lessons) and 94 additional cards tagged to SET, NWSSEE Stage 2, Tiffin
+Stage One, Tiffin Stage Two or shared recall. Every card links to a known topic.
+Filter by exam format, subject or topic. Cards contain substantive answers and
+explanations and use prompts separate from the practice tests.
 
 Try recalling the answer before choosing **Reveal answer**. **Hide answer** folds
 it away again. After revealing, choose **Know it** or **Practise again** to record
@@ -120,6 +136,94 @@ the current round, not saved ratings. Use **Only saved "practise again" cards**
 to target these cards later. Flashcards do not change lesson/quiz progress or test attempts.
 All controls work with keyboard focus and Enter/Space; there are no hidden
 swipe-only gestures or network requirements.
+
+## Original exam-style scenarios
+
+Choose **Scenarios** in the navigation or overview. The bundled bank has 32
+original situations—16 Maths and 16 English—with 64 explained subquestions.
+Filter by subject, lesson topic and scenario type. Practise a scenario as a
+short guided set: each question shows the shared context, immediate feedback
+and a worked explanation. Completed answers contribute to saved topic
+evidence, results and the existing mistake-revision and backup features.
+Repeat a set or start a different filtered scenario. Completed attempts stay
+local; leaving this page or changing filters abandons an unfinished set.
+
+Print the currently filtered scenarios for paper practice. Each scenario's
+answer key and explanations print after that scenario on a separate page.
+Nothing is labelled by a historical year or provider. These are newly written
+examples using common preparation formats, **not actual questions from the
+previous ten years** or a substitute for provider guidance. The bank is finite,
+and questions may be repeated in later practice.
+
+## Girls' exam guide and school-format practice
+
+Open **Girls' exam guide** for the two-stage routes at Tiffin Girls', Nonsuch
+and Wallington High School for Girls. Its headline is the girls' pathway; the
+shared SET is briefly distinguished from the boys' schools' separate second
+stage. The guide links official sources and labels expected dates as provisional.
+It does not predict pass marks, standardised scores or offers.
+
+The shared SET is described as multiple-choice Maths and English, broadly
+Key Stage 2, using a separate A–E lozenge answer sheet. Published guidance says
+there is no verbal or non-verbal reasoning, calculator, rough paper or negative
+marking. The expected date for the 2028-entry SET is Tuesday 14 September 2027;
+check current school guidance. SET English select-two questions require both
+correct choices. For other multi-select questions with an unspecified number
+of answers, the official partial-marking method is unpublished, so practice
+uses an explicitly stated exact-match rule.
+
+The guide distinguishes:
+
+- **Nonsuch/Wallington Stage 2 (NWSSEE):** written Maths and English, neither
+  multiple choice; both parts must be passed. Published guidance for its stated
+  cohort combines its marks with half the SET aggregate, with equal weighting
+  between the two Stage 2 parts. The 2028-entry date was not published in the
+  guidance checked.
+- **Tiffin Stage One:** English multiple choice; Maths includes multiple-choice
+  and digit-entry answers, including four-digit 24-hour times such as `0705`.
+  The practice interface is not an official OMR sheet. The expected 2028-entry
+  window is autumn 2027; check the school's website for dates and instructions.
+- **Tiffin Stage Two:** written comprehension and creative writing in English;
+  Maths final answers go on an answer sheet, and Tiffin guidance says working is
+  not marked. Papers change yearly and no past papers are published.
+
+As checked on 31 October 2026, Wallington High School for Girls' live Year 7
+page says SET registration for September 2028 entry opens on 1 May 2027 and
+lists an open evening on Tuesday 6 July 2027. The girls' autumn 2027
+second-stage date was not published. Tiffin's live page still lists the
+September 2027-entry cycle and 2026 test dates; do not carry these dates forward
+as 2028-entry dates. Its 2028-entry dates remain unpublished (autumn 2027 is
+only the expected window). Tiffin's previous Stage Two date of 7 November 2026
+is for the older entry cohort, not the 2028-entry cycle.
+
+Tiffin's published guidance also describes Year 5 curriculum assumptions,
+unfamiliar formats, age-weighted standardisation, priority areas and the
+school's published intake. These details can change: read the relevant
+admissions policy and verify address eligibility directly with the school.
+Stage One invitation is not an offer. The practice bank contains **133 SET
+questions**, **24 Tiffin digit-entry questions**, **20 original unfamiliar-
+format Maths items**, **30 written Maths problems** (10 with at least three
+method marks), **four original Stage 2 reading passages with 16 questions**,
+and **eight scaffolded writing prompts**. A topic-by-stage matrix on the
+Sutton practice page shows question counts and gaps in that bank.
+
+All practice is newly written and labelled as original; it does not reproduce
+or paraphrase official samples or commercial papers. It is not a forecast,
+complete archive or guarantee of success. School arrangements and coverage
+vary, so read the current guidance before the exam.
+
+**Official guidance links** (external; practice itself remains local):
+
+- [Sutton Grammar School admissions FAQs](https://www.suttongrammar.sutton.sch.uk/admissions/faqs/) and [admissions information](https://www.suttongrammar.sutton.sch.uk/admissions/)
+- [Wilson's School admissions FAQs](https://www.wilsons.school/admissions-faqs/)
+- [Wallington High School for Girls Year 7 admissions](https://www.wallingtongirls.org.uk/page/?title=Year+7+Admissions&pid=217) and [published 2027 admissions policy](https://www.wallingtongirls.org.uk/_site/data/files/admissions/5ABCEC16AB806E1FA4B5D3EE70C14990.pdf)
+- [The Tiffin Girls' School Year 7 admissions](https://www.tiffingirls.org/admissions/year-7/), [FAQ for September 2027 entry](https://fra1.digitaloceanspaces.com/tiffingirls.org/wp-content/uploads/2026/03/13141601/FAQ-Sep27-%40-100226.pdf) and [determined admissions arrangements for September 2027 entry](https://fra1.digitaloceanspaces.com/tiffingirls.org/wp-content/uploads/2026/03/11120006/Determined-Admissions-Arrangements-for-entry-September-2027.pdf)
+
+The app's **Exam tips** page gives paper-specific advice for SET answer-sheet
+technique, select-two, Tiffin numeric entry, written Maths, comprehension,
+creative writing, and general Maths/English methods. These are preparation
+ideas, not official instructions. Follow the exam-day directions from the
+relevant school.
 
 ## Study materials
 
@@ -203,9 +307,11 @@ and writing/planning/editing.
 This is broad foundation coverage, **not a claim to cover every school or exam**.
 Depth, formats and writing requirements vary by school and exam provider.
 Check the target school's current guidance. Verbal and non-verbal reasoning
-are not included as separate subjects. Three lesson questions and two separate test-bank questions per topic, plus
-12 longer-reading questions, provide useful practice but are not an exhaustive
-exam bank; worksheets reuse the lesson questions. Writing practice here
+are not included as separate subjects. The site includes lesson and test-bank
+questions, 12 foundation reading questions, 64 scenario subquestions, and the
+school-format banks described above. This is useful original practice, not an
+exhaustive exam bank or a ten-year archive of real papers; worksheets reuse the
+lesson questions. Writing practice here
 teaches planning and editing through examples and objective questions; it does
 not automatically grade extended written responses.
 
@@ -223,8 +329,9 @@ change the direct-file offline capability.
 ## Development
 
 Edit `topics.js` for lessons and short practice, `test-bank.js` for the separate
-test bank, `flashcards.js` for recall cards, and `study-materials.js` for
-reference notes, longer passages and writing prompts. `app.js` controls
+test bank, `flashcards.js` for recall cards, `study-materials.js` for reference
+notes, longer passages and writing prompts, and `scenario-bank.js` for original
+scenario contexts and linked questions. `app.js` controls
 navigation, materials, practice, tests and progress; `progress.js` defines the
 strict backup schema and evidence calculations;
 `styles.css` includes responsive,
@@ -240,6 +347,8 @@ node tests/practice-tests.content.cjs
 node tests/flashcards.content.cjs
 node tests/preparation.content.cjs
 node tests/study-materials.content.cjs
+node tests/scenarios.content.cjs
+node tests/exam-readiness.content.cjs
 ```
 
 For optional browser regression checks, install Playwright in your development
@@ -258,3 +367,9 @@ Run `node tests/preparation.browser.cjs` with the same optional variables for
 timers, extended sets, persistent results, revision, planner and backup checks.
 Run `node tests/study-materials.browser.cjs` for materials, worksheet printing
 and comprehension interactions.
+Run `node tests/scenarios.browser.cjs` for subject/topic/type filtering, contextual
+answers, saved evidence, print answer keys, repeat attempts and offline responsive use.
+Run `node tests/exams.browser.cjs` to exercise the girls' guide and tips, numeric
+Tiffin answers (including leading-zero time), SET select-two scoring, NWSSEE and
+Tiffin Stage 2 written practice, self-review, coverage matrix and responsive
+offline behaviour.

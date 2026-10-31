@@ -13,7 +13,8 @@ async function run() {
     page.on("pageerror", error => errors.push(error.message));
     page.on("request", request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
     await page.goto(url + "#flashcards");
-    const cards = await page.evaluate(() => window.BRIGHTLANE_FLASHCARDS);
+    const allCards = await page.evaluate(() => window.BRIGHTLANE_FLASHCARDS);
+    const cards = allCards.filter(card => card.exam === "General revision");
     const topics = await page.evaluate(() => window.BRIGHTLANE_TOPICS);
     async function route(hash) {
       await page.evaluate(hash => { location.hash = hash; }, hash);
@@ -25,6 +26,7 @@ async function run() {
       assert.ok(card);
       return card;
     }
+    await page.locator("#card-exam").selectOption("General revision");
     assert.match(await page.locator(".card-study-bar").textContent(), /Card 1 of 60/);
     assert.equal(await page.locator("#card-previous").isDisabled(), true);
     assert.equal(await page.locator("#card-answer").isVisible(), false);
@@ -145,6 +147,7 @@ async function run() {
     for (const field of ["studied", "scores", "attempts", "planner"]) assert.deepEqual(after[field], before[field], "Flashcards do not change " + field);
     assert.equal(Object.keys(after.cardRatings).length, 60, "Saved card ratings persist");
     await page.reload();
+    await page.locator("#card-exam").selectOption("General revision");
     assert.match(await page.locator(".card-study-bar").textContent(), /Card 1 of 60/);
     assert.equal(await page.locator("#card-answer").isVisible(), false);
     assert.match(await page.locator("#deck-progress").textContent(), /0 of 60 assessed/);
@@ -152,11 +155,17 @@ async function run() {
     await page.evaluate(() => { window.BRIGHTLANE_FLASHCARDS = []; });
     await page.locator("#card-topic").selectOption("fractions");
     assert.match(await page.locator("#flashcard-deck").textContent(), /No cards in this deck/);
-    await page.evaluate(cards => { window.BRIGHTLANE_FLASHCARDS = cards; }, cards);
+    await page.evaluate(cards => { window.BRIGHTLANE_FLASHCARDS = cards; }, allCards);
     await page.locator("#cards-show-all").click();
-    assert.match(await page.locator(".card-study-bar").textContent(), /of 60/);
+    assert.match(await page.locator(".card-study-bar").textContent(), /of 154/);
+    for (const [exam, count] of [["SET", 20], ["NWSSEE Stage 2", 18], ["Tiffin Stage One", 16], ["Tiffin Stage Two", 15], ["All exams", 25]]) {
+      await page.locator("#card-exam").selectOption(exam);
+      assert.match(await page.locator(".card-study-bar").textContent(), new RegExp("of " + count + "\\b"));
+      const currentCardText = await page.locator(".recall-card h2").textContent();
+      assert.ok(allCards.some(card => card.exam === exam && card.front === currentCardText), exam + " filter selects a matching card");
+    }
     assert.deepEqual(errors, []); assert.deepEqual(network, []);
-    console.log("PASS: all 60 cards revealed offline via file://; keyboard reveal/hide; navigation, rating changes, completion, 20-card retry-only deck, all-known/restart, 30 topic and subject filters, shuffle membership/retained ratings, visit-only state, unchanged lesson/test progress, defensive empty deck and 300 responsive revealed-card checks; zero external requests or page errors.");
+    console.log("PASS: 60 general cards plus 94 school/exam-format cards (154 total) offline via file://; keyboard reveal/hide; navigation, rating changes, completion, retry-only deck, 30 topic/subject and exam filters, shuffle membership/retained ratings, visit-only state, unchanged lesson/test progress, defensive empty deck and 300 responsive revealed-card checks; zero external requests or page errors.");
   } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
