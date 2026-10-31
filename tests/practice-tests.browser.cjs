@@ -115,7 +115,10 @@ async function run() {
       await page.locator("#test-new").click();
     }
     assert.equal(reviewed, 60);
-    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("brightlane-progress-v1"))), saved, "Tests preserve existing progress");
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("brightlane-progress-v1")));
+    assert.deepEqual(stored.studied, saved.studied, "Tests preserve studied lessons");
+    assert.deepEqual(stored.scores, saved.scores, "Tests preserve best lesson scores");
+    assert.equal(stored.attempts.length, 9, "Completed tests persist");
     await page.locator('.start-test[data-mode="english"]').click();
     for (const width of [320, 375, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });

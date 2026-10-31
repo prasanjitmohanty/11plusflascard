@@ -140,7 +140,10 @@ async function run() {
     await page.locator("#card-reveal").click();
     await page.locator(".recall-card h2").click();
     if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-flashcards-mobile.png"), fullPage: true });
-    assert.equal(await page.evaluate(() => localStorage.getItem("brightlane-progress-v1")), progress);
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem("brightlane-progress-v1")));
+    const before = JSON.parse(progress);
+    for (const field of ["studied", "scores", "attempts", "planner"]) assert.deepEqual(after[field], before[field], "Flashcards do not change " + field);
+    assert.equal(Object.keys(after.cardRatings).length, 60, "Saved card ratings persist");
     await page.reload();
     assert.match(await page.locator(".card-study-bar").textContent(), /Card 1 of 60/);
     assert.equal(await page.locator("#card-answer").isVisible(), false);
