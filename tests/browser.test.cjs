@@ -22,6 +22,7 @@ async function run() {
     await page.keyboard.press("Enter");
     assert.equal(await page.locator("#main").evaluate(el => el === document.activeElement), true);
     assert.match(await page.locator("h1").textContent(), /Your 11\+ journey/);
+    await page.locator("h1").click();
     if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-desktop.png"), fullPage: true });
     async function route(hash) {
       await page.evaluate(hash => { location.hash = hash; }, hash);
@@ -107,13 +108,13 @@ async function run() {
     }
     await page.setViewportSize({ width: 375, height: 850 });
     await route("#home");
-    if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-mobile.png"), fullPage: true });
     await page.locator("#home-reset").click();
     await page.locator("#home-cancel").click();
     assert.match(await page.locator("#progress-count").textContent(), /29 of 30/);
     await page.locator("#home-reset").click();
     await page.locator("#home-confirm").click();
     assert.match(await page.locator("#progress-count").textContent(), /0 of 30/);
+    if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-mobile.png"), fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await route("#topic/fractions");
     if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-lesson.png"), fullPage: true });
