@@ -11,7 +11,11 @@
   let writtenMock = null;
   let deck = null;
   let cardFilters = { subject: "all", topic: "all", exam: "all" };
+  let catalogueFilters = { query: "", subject: "all", topic: "all", exam: "all", round: "all", difficulty: "all" };
+  let vocabularySearch = "";
+  let spellingTargetId = "";
   let timer = null;
+  let visualRenderSequence = 0;
   let pendingImport = null;
   let importRevision = 0;
   let scenarioFilters = { subject: "all", topic: "all", type: "all" };
@@ -42,11 +46,40 @@
     }
     updateProgress();
   }
+  function scheduleReview(id, recalled) {
+    const previous = state.reviewSchedule[id] || { box: 0, dueDate: new Date().toISOString().slice(0, 10) };
+    const box = recalled ? Math.min(5, previous.box + 1) : 0;
+    const intervalDays = [1, 3, 7, 14, 30, 60];
+    const due = new Date();
+    due.setUTCDate(due.getUTCDate() + intervalDays[box]);
+    state.reviewSchedule[id] = { box, dueDate: due.toISOString().slice(0, 10) };
+    save();
+  }
+  function reviewIsDue(id) {
+    const schedule = state.reviewSchedule[id];
+    return !schedule || schedule.dueDate <= new Date().toISOString().slice(0, 10);
+  }
+  function persistWrittenMock() {
+    state.writtenDraft = writtenMock ? {
+      subject: writtenMock.subject,
+      paper: writtenMock.paper,
+      scope: writtenMock.scope,
+      seconds: writtenMock.seconds,
+      deadline: writtenMock.deadline,
+      expired: writtenMock.expired,
+      submitted: writtenMock.submitted,
+      confirming: writtenMock.confirming,
+      itemIds: writtenMock.items.map(item => item.id),
+      answers: writtenMock.answers.slice(),
+      selfMarks: writtenMock.selfMarks.slice()
+    } : null;
+    save();
+  }
   function resetState() {
     stopTimer();
     ++importRevision;
     state = progress.empty(); exam = null; writtenMock = null; deck = null; quiz = null; pendingImport = null;
-    cardFilters = { subject: "all", topic: "all", exam: "all" };
+    cardFilters = { subject: "all", topic: "all", exam: "all", dueOnly: false };
     save();
   }
   function recordAttempt(items, answers, mode, kind, seconds = 0, expired = false) {
@@ -72,21 +105,42 @@
   const scenarioQuestionCount = scenarios.reduce((sum, scenario) => sum + scenario.questions.length, 0);
   const suttonQuestionCount = Object.values(sutton.stageOne).reduce((sum, items) => sum + items.length, 0) + sutton.stageTwo.maths.length + sutton.stageTwo.passages.reduce((sum, passage) => sum + passage.questions.length, 0);
   const tiffinQuestionCount = sutton.tiffin.numeric.length + sutton.tiffin.unfamiliar.length;
-  const allQuestionCount = totalQuestions + window.BRIGHTLANE_TEST_BANK.length + studyMaterials.readings.reduce((sum, reading) => sum + reading.questions.length, 0) + scenarioQuestionCount + suttonQuestionCount + tiffinQuestionCount;
+  const mathsWaveTwo = window.BRIGHTLANE_MATHS_WAVE_TWO;
+  const vocabulary = window.BRIGHTLANE_VOCABULARY;
+  const englishLab = window.BRIGHTLANE_ENGLISH_LAB || { passages: [], writingPrompts: [], modelParagraphs: [], languageBanks: [], typeQuestions: [] };
+  const mathsLab = window.BRIGHTLANE_MATHS_LAB || { strategies: [], visualQuestions: [], strategyQuestions: [] };
+  const allQuestionCount = progress.questions.length;
+  function restoreWrittenMock() {
+    if (!state.writtenDraft) return false;
+    const draft = state.writtenDraft;
+    const items = writtenMockItems(draft.subject, draft.paper, draft.scope);
+    if (items.length === draft.itemIds.length && items.every((item, index) => item.id === draft.itemIds[index])) {
+      writtenMock = { ...draft, items };
+      return true;
+    } else {
+      console.warn("Brightlane could not restore the saved written mock because its question set has changed.");
+      state.writtenDraft = null;
+      return false;
+    }
+  }
+  restoreWrittenMock();
   const coverage = "2027 preparation edition: for UK 11+ exams taken in 2027, not a universal school entry year. This is a broad foundation, not an official 2027 syllabus or a guarantee of every school's exam content. Schools and providers vary in topic depth, format and writing requirements. Check their current guidance for requirements, exam dates and the relevant school entry year. Verbal and non-verbal reasoning are not separate subjects here.";
   function home() {
+    const savedWritten = state.writtenDraft;
     main.innerHTML = `
       <section class="hero" aria-labelledby="welcome">
         <div><p class="eyebrow">2027 PREPARATION EDITION</p><h1 id="welcome">Big ideas.<br>Small steps.<br><em>Your 11+ journey.</em></h1>
         <p class="intro">Build confidence in Maths and English, one topic at a time. Clear explanations, worked examples and practice that helps it all click.</p><a class="cta" href="#maths">Explore your topics <span aria-hidden="true">&#8594;</span></a></div>
         <div class="hero-illustration" aria-hidden="true"><div class="art-circle"></div><span class="art-spark">&#10022;</span><div class="book">Aa</div><div class="math-tile">x +</div></div>
       </section>
-      <div class="stats" aria-label="Site contents"><div class="stat"><strong>${topics.length}</strong><span>topic lessons<br>to explore</span></div><div class="stat"><strong>${allQuestionCount}</strong><span>unique practice questions<br>with explanations</span></div><div class="stat"><strong>${window.BRIGHTLANE_FLASHCARDS.length}</strong><span>recall cards<br>to practise offline</span></div></div>
+      <div class="stats" aria-label="Site contents"><div class="stat"><strong>${topics.length}</strong><span>topic lessons<br>to explore</span></div><div class="stat"><strong>${allQuestionCount}</strong><span>auto-marked questions<br>with explanations</span></div><div class="stat"><strong>${window.BRIGHTLANE_FLASHCARDS.length}</strong><span>recall cards<br>to practise offline</span></div></div>
       <section aria-labelledby="subjects"><div class="section-heading"><h2 id="subjects">What will you discover today?</h2><p>Pick a subject. Find your next small win.</p></div>
       <div class="subject-grid">${["maths", "english"].map(subject => {
         const count = topics.filter(t => t.subject === subject).length;
         return `<a class="subject-card ${subject}" href="#${subject}"><div class="subject-art" aria-hidden="true"><span class="subject-symbol">${subject === "maths" ? "123" : "Aa"}</span><span class="mini-grid">${subject === "maths" ? "&#9651; &nbsp; +<br>1/2 &nbsp; =" : "a story<br>starts here."}</span></div><div class="subject-body"><span class="tag">THINK ${subject === "maths" ? "LOGICALLY" : "CREATIVELY"}</span><h3>${label(subject)}</h3><p>${subject === "maths" ? "From fractions to shapes, discover the patterns and methods behind the numbers." : "Explore words, understand stories and find confidence in your own voice."}</p><div class="card-bottom"><span>${count} topics &middot; ${count * 3} questions</span><span class="card-arrow" aria-hidden="true">&#8594;</span></div></div></a>`;
       }).join("")}</div></section>
+      <section class="study-pathway"><p class="eyebrow">YOUR OFFLINE STUDY HUB</p><h2>Choose a school. Learn. Practise. Review.</h2><p>Use the girls' exam guide to choose Nonsuch/Wallington or Tiffin Girls' and the right round. Learn a topic, practise from one shared question catalogue, take a mock, review mistakes and schedule another recall session.</p><div class="quiz-controls"><a class="secondary-button" href="#exams">Choose school &amp; round</a><a class="secondary-button" href="#catalogue">Search all questions</a><a class="secondary-button" href="#vocabulary">Vocabulary &amp; spelling</a><a class="secondary-button" href="#dashboard">Review progress</a></div></section>
+      ${savedWritten ? `<section class="test-banner"><div><p class="eyebrow">SAVED WRITTEN MOCK</p><h2>${savedWritten.submitted ? "Return to your self-review." : "Continue your written mock."}</h2><p>${savedWritten.answers.filter(answer => answer.trim()).length} of ${savedWritten.itemIds.length} responses contain text. Drafts and self-awarded marks are saved on this device; no written answer is automatically graded.</p></div><a class="secondary-button" href="#resume-written">${savedWritten.submitted ? "Open review" : "Resume mock"}</a></section>` : ""}
       <section class="practice-banner"><span class="badge" aria-hidden="true">&#10022;</span><div><h3>A little practice goes a long way.</h3><p>Try a short mixed set. No timer, no pressure, just progress.</p></div><a class="cta" href="#practice">Let's practise <span aria-hidden="true">&#8594;</span></a></section>
       <section class="test-banner"><div><p class="eyebrow">READY FOR A BIGGER STEP?</p><h2>Put your learning together.</h2><p>Maths, English and mixed tests, untimed or with an optional timer. Submit for your score and explained review.</p></div><a class="secondary-button" href="#tests">${exam ? "Return to your test" : "Explore practice tests"} <span aria-hidden="true">&#8594;</span></a></section>
       <section class="test-banner flashcard-banner"><div><p class="eyebrow">RECALL A LITTLE, REMEMBER MORE</p><h2>Turn an idea into a small win.</h2><p>${window.BRIGHTLANE_FLASHCARDS.length} flashcards across Maths and English. Try recalling the answer, then reveal and choose what to revisit.</p></div><a class="secondary-button" href="#flashcards">${deck ? "Return to flashcards" : "Explore flashcards"} <span aria-hidden="true">&#8594;</span></a></section>
@@ -125,11 +179,14 @@
   function lesson(t) {
     const list = topics.filter(item => item.subject === t.subject);
     const index = list.indexOf(t);
+    const linkedStrategies = mathsLab.strategies.filter(strategy =>
+      mathsLab.strategyQuestions.some(question => question.strategyId === strategy.id && question.topicId === t.id));
     main.innerHTML = `<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#home">Overview</a><span aria-hidden="true">/</span><a href="#${t.subject}">${label(t.subject)}</a><span aria-hidden="true">/</span><span>${esc(t.title)}</span></nav>
       <div class="lesson-layout"><article><header class="lesson-header"><p class="eyebrow">${label(t.subject)} &middot; TOPIC ${index + 1} OF ${list.length}</p><h1>${esc(t.title)}</h1><p>${esc(t.summary)}</p></header>
       <section class="lesson-block"><h2>The key ideas</h2><ul>${t.learn.map(p => `<li>${esc(p)}</li>`).join("")}</ul></section>
       ${t.passage ? `<section class="lesson-block"><h2>Read &amp; explore</h2><p class="eyebrow">AN ORIGINAL BRIGHTLANE PASSAGE</p><div class="passage">${esc(t.passage)}</div></section>` : ""}
       <section class="lesson-block worked-example"><p class="eyebrow">LET'S WORK IT THROUGH</p><h2>${t.subject === "maths" ? "Worked example" : "Example in action"}</h2><p><strong>${esc(t.example[0])}</strong></p><p>${esc(t.example[1])}</p></section>
+      ${linkedStrategies.length ? `<section class="lesson-block"><p class="eyebrow">MATHS STRATEGY</p><h2>Another way to reason</h2>${linkedStrategies.map(strategy => `<article class="strategy-lesson"><h3>${esc(strategy.title)}</h3><p>${esc(strategy.explanation)}</p><ol>${strategy.steps.map(step => `<li>${esc(step)}</li>`).join("")}</ol><p><a class="text-button" href="#catalogue">Find related written problems in the question catalogue</a></p></article>`).join("")}</section>` : ""}
       <section class="lesson-block pitfall"><h2>Watch out for...</h2><p>${esc(t.pitfall)}</p></section>
       <section class="practice-panel" id="lesson-practice" aria-label="Topic practice"></section>
       <div class="lesson-actions"><button class="secondary-button" id="mark-studied" type="button">${state.studied.includes(t.id) ? "Studied - undo" : "Mark lesson as studied"}</button>${index + 1 < list.length ? `<a class="cta" href="#topic/${list[index + 1].id}">Next topic <span aria-hidden="true">&#8594;</span></a>` : `<a class="cta" href="#${t.subject}">Back to ${label(t.subject)} topics</a>`}</div><p class="status-line" id="lesson-status" role="status"></p>
@@ -145,11 +202,11 @@
   }
   function practicePage() {
     quiz = null;
-    main.innerHTML = `<div class="page-header"><p class="eyebrow">CONFIDENCE COMES WITH PRACTICE</p><h1>A fresh mix. A small challenge.</h1><p>Choose a subject and a set size. Questions are shuffled from the same lesson bank, with feedback after every answer. No timer: take your time and use paper for working.</p></div><div class="filters"><label>Subject<select id="practice-subject"><option value="all">Maths &amp; English</option><option value="maths">Maths only</option><option value="english">English only</option></select></label><label>Set size<select id="practice-size"><option value="5">5 questions</option><option value="10">10 questions</option><option value="15">15 questions</option></select></label></div><p class="start-row"><button class="cta" id="start-mixed" type="button">Start a practice set <span aria-hidden="true">&#8594;</span></button></p><section class="practice-panel" id="mixed-quiz" hidden aria-label="Mixed practice"></section><p class="coverage-note">English questions include their original passage where needed. Mixed scores are for this set only; completing a topic set records your best score for that lesson.</p>`;
+    main.innerHTML = `<div class="page-header"><p class="eyebrow">CONFIDENCE COMES WITH PRACTICE</p><h1>A fresh mix. A small challenge.</h1><p>Choose a subject and a set size. Questions are shuffled from the same lesson bank, with feedback after every answer. No timer: take your time and use paper for working.</p></div><div class="filters"><label>Subject<select id="practice-subject"><option value="all">Maths &amp; English</option><option value="maths">Maths only</option><option value="english">English only</option></select></label><label>Set size<select id="practice-size"><option value="5">5 questions</option><option value="10">10 questions</option><option value="15">15 questions</option></select></label></div><p class="start-row"><button class="cta" id="start-mixed" type="button">Start a practice set <span aria-hidden="true">&#8594;</span></button></p><section class="practice-panel" id="mixed-quiz" hidden aria-label="Mixed practice"></section>    <p class="coverage-note">Sets draw from the same canonical questions used in the searchable catalogue, including new vocabulary practice. English questions include their original passage where needed. Topic sets update a best score; mixed sets are recorded as attempts only.</p>`;
     document.getElementById("start-mixed").addEventListener("click", () => {
       const subject = document.getElementById("practice-subject").value;
       const count = Number(document.getElementById("practice-size").value);
-      const bank = progress.questions.filter(q => q.id.includes("-lesson-") && (subject === "all" || q.topic.subject === subject));
+      const bank = progress.questions.filter(q => subject === "all" || q.topic.subject === subject);
       shuffle(bank);
       document.getElementById("mixed-quiz").hidden = false;
       document.getElementById("start-mixed").textContent = "Start a new set";
@@ -157,6 +214,124 @@
       document.getElementById("mixed-quiz").scrollIntoView({ block: "start", behavior: "auto" });
       focusQuiz();
     });
+  }
+  function cataloguePage() {
+    const examOptions = ["General KS2", "SET", "NWSSEE Stage 2", "Tiffin Stage One", "Tiffin Stage Two", "Sutton Stage 2"];
+    const pageSize = 60;
+    let visibleCount = pageSize;
+    const writtenMaths = sutton.stageTwo.maths.map(item => ({
+      ...item, q: item.q, format: "written", difficulty: "stretch", exams: ["General KS2"], round: "Stage 2",
+      why: item.scheme.join(" "), topic: topics.find(topic => topic.id === item.topicId), catalogueWritten: true
+    }));
+    const writtenReading = sutton.stageTwo.passages.flatMap(passage => passage.questions.map(item => ({
+      ...item, q: item.q, format: "written", difficulty: "stretch", maxMarks: item.marks, exams: ["General KS2"], round: "Stage 2",
+      why: item.scheme, passage: passage.text, topic: topics.find(topic => topic.id === item.topicId), catalogueWritten: true
+    })));
+    const labWrittenReading = englishLab.passages.flatMap(passage => passage.questions.filter(item => item.format === "written").map(item => ({
+      ...item, format: "written", difficulty: item.difficulty, maxMarks: item.marks, finalAnswer: item.modelAnswer,
+      exams: ["General KS2"], round: "Stage 2", why: item.scheme.join(" "),
+      passage: passage.segments.map(segment => segment.text).join("\n\n"), passageTitle: passage.title,
+      passageGenre: passage.genre, passageSegments: passage.segments,
+      topic: topics.find(topic => topic.id === item.topicId), catalogueWritten: true
+    })));
+    const strategyWritten = mathsLab.strategyQuestions.map(item => ({
+      ...item, format: "written", difficulty: item.difficulty, exams: ["General KS2"], round: "Stage 2",
+      topic: topics.find(topic => topic.id === item.topicId), catalogueWritten: true
+    }));
+    const records = [...progress.questions, ...writtenMaths, ...writtenReading, ...labWrittenReading, ...strategyWritten];
+    const getExams = question => {
+      const exams = question.exams || (question.id.startsWith("sutton-set-") ? ["SET"] : question.id.startsWith("tiffin-stage-one-") || question.id.startsWith("tiffin-unfamiliar-") ? ["Tiffin Stage One"] : ["General KS2"]);
+      if (exams.includes("All exams")) return examOptions;
+      if (exams.includes("General KS2")) return [...new Set([...exams, ...examOptions.filter(exam => exam !== "General KS2")])];
+      if (question.id.startsWith("sutton-stage2-")) return [...new Set([...exams, "Sutton Stage 2"])];
+      return exams;
+    };
+    const getRound = question => {
+      const round = question.round || (question.id.startsWith("sutton-set-") || question.id.startsWith("tiffin-stage-one-") || question.id.startsWith("tiffin-unfamiliar-") ? "Stage 1" : question.id.startsWith("sutton-stage2-") ? "Stage 2" : "Both");
+      return round.toLocaleLowerCase("en-GB") === "both" ? "Both" : round.toLocaleLowerCase("en-GB") === "stage 1" ? "Stage 1" : round.toLocaleLowerCase("en-GB") === "stage 2" ? "Stage 2" : round;
+    };
+    let matches = [];
+    const roundMatches = question => {
+      if (catalogueFilters.round === "all") return true;
+      const round = getRound(question);
+      return round === catalogueFilters.round || (round === "Both" && ["Stage 1", "Stage 2"].includes(catalogueFilters.round));
+    };
+    const getDifficulty = question => question.difficulty || "foundation";
+    function render() {
+      const query = catalogueFilters.query.trim().toLocaleLowerCase("en-GB");
+      matches = records.filter(question => {
+        const searchText = [question.id, question.q, question.why, question.topic.title, question.passage || "", question.entryId || ""].join(" ").toLocaleLowerCase("en-GB");
+        return (!query || searchText.includes(query))
+          && (catalogueFilters.subject === "all" || question.topic.subject === catalogueFilters.subject)
+          && (catalogueFilters.topic === "all" || question.topicId === catalogueFilters.topic)
+          && (catalogueFilters.exam === "all" || getExams(question).includes(catalogueFilters.exam))
+          && roundMatches(question)
+          && (catalogueFilters.difficulty === "all" || getDifficulty(question) === catalogueFilters.difficulty);
+      });
+      const displayed = matches.slice(0, visibleCount);
+      document.getElementById("catalogue-count").textContent = `Showing ${displayed.length} of ${matches.length} matching catalogue tasks (${records.length} total)`;
+      document.getElementById("catalogue-results").innerHTML = displayed.length ? `${displayed.map(question => `
+        <article class="catalogue-card">
+          <p class="eyebrow">${label(question.topic.subject)} · ${esc(question.topic.title)} · ${esc(getRound(question))} · ${esc(getDifficulty(question))}</p>
+          <h2>${esc(question.q)}</h2>
+          ${visualMarkup(question)}
+          ${passageMarkup(question, "Read passage")}
+          <p class="catalogue-answer">${question.catalogueWritten ? `Written response · ${question.maxMarks} instructional mark points` : question.format === "numeric-entry" ? "Digit-grid entry" : Array.isArray(question.answer) ? "Select-two practice" : "Multiple choice"}
+          · ${getExams(question).map(esc).join(", ")}</p>
+          <div class="quiz-controls">${question.catalogueWritten
+            ? question.strategyId
+              ? `<a class="secondary-button" href="#topic/${esc(question.topicId)}">Review topic lesson</a><a class="secondary-button" href="#exams">Open written mocks</a>`
+              : question.passageTitle
+                ? `<a class="secondary-button" href="#exams">Open Stage 2 written mocks</a>`
+                : `<a class="secondary-button" href="#sutton-study">Open written practice</a>`
+            : `<button class="secondary-button catalogue-practise" type="button" data-question-id="${esc(question.id)}">Practise this question</button>`}
+            <a class="text-button" href="#topic/${esc(question.topicId)}">Review ${esc(question.topic.title)}</a></div>
+        </article>`).join("")}<div class="catalogue-pagination">${matches.length > displayed.length ? `<button class="secondary-button" id="catalogue-load-more" type="button">Show next ${Math.min(pageSize, matches.length - displayed.length)} questions</button>` : ""}</div>` : `<p class="empty">No questions match those filters. Broaden a filter or try a different search.</p>`;
+      document.getElementById("catalogue-sprint").disabled = matches.filter(question => !question.catalogueWritten).length < 5;
+      const loadMore = document.getElementById("catalogue-load-more");
+      if (loadMore) loadMore.addEventListener("click", () => { visibleCount += pageSize; render(); });
+      document.querySelectorAll(".catalogue-practise").forEach(button => button.addEventListener("click", () => {
+        const question = progress.byId.get(button.dataset.questionId);
+        document.getElementById("catalogue-quiz").hidden = false;
+        startQuiz([question], "catalogue-quiz", null);
+        document.getElementById("catalogue-quiz").scrollIntoView({ block: "start" });
+        focusQuiz();
+      }));
+    }
+    main.innerHTML = `<div class="page-header"><p class="eyebrow">ONE QUESTION BANK · REUSED THROUGHOUT</p><h1>Search the question catalogue.</h1><p>Browse objective items by subject, topic, exam, round and difficulty. Mocks and practice sets reuse these canonical records and stable IDs; Stage 2 written prompts open their shared study materials.</p></div>
+      <label class="catalogue-search">Search questions, answers and explanations<input id="catalogue-search" type="search" value="${esc(catalogueFilters.query)}" placeholder="Try fractions, inference, a spelling or an idea..."></label>
+      <div class="filters catalogue-filters">
+        <label>Subject<select id="catalogue-subject"><option value="all">Maths &amp; English</option><option value="maths">Maths</option><option value="english">English</option></select></label>
+        <label>Topic<select id="catalogue-topic"><option value="all">All topics</option>${topics.map(topic => `<option value="${esc(topic.id)}">${label(topic.subject)} · ${esc(topic.title)}</option>`).join("")}</select></label>
+        <label>Exam<select id="catalogue-exam"><option value="all">All exams</option>${examOptions.map(exam => `<option value="${esc(exam)}">${esc(exam)}</option>`).join("")}</select></label>
+        <label>Round<select id="catalogue-round"><option value="all">All rounds</option><option>Stage 1</option><option>Stage 2</option><option>Both</option></select></label>
+        <label>Difficulty<select id="catalogue-difficulty"><option value="all">All levels</option><option value="foundation">Foundation</option><option value="stretch">Stretch</option><option value="challenge">Challenge</option></select></label>
+      </div>
+      <div class="catalogue-toolbar"><p id="catalogue-count" role="status" aria-live="polite"></p><button class="cta" id="catalogue-sprint" type="button">Start a 10-question sprint</button></div>
+      <section class="practice-panel" id="catalogue-quiz" hidden aria-label="Catalogue practice question"></section>
+      <div id="catalogue-results" class="catalogue-grid"></div>
+      <p class="coverage-note">Exam labels describe Brightlane practice routes, not confirmed school syllabuses. “General KS2” and “All exams” records can appear under school filters as broad practice, not a claim that the topic is examined. This is not an official or exhaustive syllabus. Written work is not automatically graded; its instructional mark schemes are distinct from final-answer accuracy, especially for Tiffin Stage Two.</p>`;
+    document.getElementById("catalogue-search").addEventListener("input", event => { catalogueFilters.query = event.target.value; visibleCount = pageSize; render(); });
+    for (const [control, key] of [["catalogue-subject", "subject"], ["catalogue-topic", "topic"], ["catalogue-exam", "exam"], ["catalogue-round", "round"], ["catalogue-difficulty", "difficulty"]]) {
+      const select = document.getElementById(control);
+      select.value = catalogueFilters[key];
+      select.addEventListener("change", event => { catalogueFilters[key] = event.target.value; visibleCount = pageSize; render(); });
+    }
+    document.getElementById("catalogue-sprint").addEventListener("click", () => {
+      const available = matches.filter(question => !question.catalogueWritten);
+      const panel = document.getElementById("catalogue-quiz");
+      if (!available.length) {
+        panel.hidden = false;
+        panel.innerHTML = `<p class="empty" role="status">No automatically marked questions match this search. Change the filters or choose a written task to open a mock.</p>`;
+        return;
+      }
+      shuffle(available);
+      panel.hidden = false;
+      startQuiz(available.slice(0, 10), "catalogue-quiz", null);
+      panel.scrollIntoView({ block: "start" });
+      focusQuiz();
+    });
+    render();
   }
   function shuffle(items) {
     for (let i = items.length - 1; i > 0; i--) {
@@ -175,6 +350,34 @@
       const checked = multiple ? Array.isArray(selected) && selected.includes(i) : selected === i;
       return `<label class="choice"><input type="${multiple ? "checkbox" : "radio"}" name="answer" value="${i}"${checked ? " checked" : ""}><span><span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + i)}.</span> ${esc(option)}</span></label>`;
     }).join("")}</fieldset>`;
+  }
+  function visualMarkup(item) {
+    if (!item.visual) return "";
+    const renderId = ++visualRenderSequence;
+    const svg = item.visual.svg.replace(/visual-maths-\d{3}/g, id => `${id}-render-${renderId}`);
+    return `<figure class="question-visual"><div aria-hidden="true">${svg}</div><figcaption>${esc(item.visual.alt)}</figcaption></figure>`;
+  }
+  function passageSegmentsMarkup(segments, genre = "") {
+    const paragraphs = new Map();
+    segments.forEach((segment, index) => {
+      const paragraph = segment.paragraph || index + 1;
+      if (!paragraphs.has(paragraph)) paragraphs.set(paragraph, []);
+      paragraphs.get(paragraph).push(segment);
+    });
+    const poetry = genre === "poetry";
+    return [...paragraphs].map(([paragraph, group]) => `<p class="passage-paragraph${poetry ? " poetry-stanza" : ""}" data-paragraph="${esc(paragraph)}">${group.map((segment, index) =>
+      `<button class="passage-segment" type="button" data-highlight-evidence="${esc(segment.id)}" data-evidence-target="${esc(segment.id)}" aria-pressed="false" aria-label="Highlight this evidence: ${esc(segment.text)}">${esc(segment.text)}</button>${poetry && index < group.length - 1 ? "<br>" : " "}`
+    ).join("")}</p>`).join("");
+  }
+  function passageMarkup(item, summary = "Original passage for this question") {
+    if (item.passageSegments) {
+      return `<details open><summary>${esc(item.passageTitle || summary)} · select a line to highlight evidence</summary><div class="passage passage-segments">${passageSegmentsMarkup(item.passageSegments, item.passageGenre)}</div></details>`;
+    }
+    return item.passage ? `<details open><summary>${esc(item.passageTitle || summary)}</summary><div class="passage long-passage">${esc(item.passage)}</div></details>` : "";
+  }
+  function evidenceMarkup(item) {
+    if (!item.evidenceIds?.length) return "";
+    return `<div class="evidence-controls"><p>Use the passage to check the evidence:</p>${item.evidenceIds.map((id, index) => `<button class="text-button" type="button" data-highlight-evidence="${esc(id)}" aria-pressed="false">Highlight evidence ${index + 1}</button>`).join("")}</div>`;
   }
   function answerText(item, selected) {
     if (selected === null) return "Not answered";
@@ -566,12 +769,26 @@
     if (subject === "maths") {
       const midpoint = Math.ceil(sutton.stageTwo.maths.length / 2);
       const selected = paper === "A" ? sutton.stageTwo.maths.slice(0, midpoint) : sutton.stageTwo.maths.slice(midpoint);
-      return selected.map(item => ({ ...item, type: "maths", topic: topics.find(topic => topic.id === item.topicId) }));
+      const strategies = mathsLab.strategyQuestions;
+      const strategyMidpoint = Math.ceil(strategies.length / 2);
+      const selectedStrategies = paper === "A" ? strategies.slice(0, strategyMidpoint) : strategies.slice(strategyMidpoint);
+      return [
+        ...selected.map(item => ({ ...item, type: "maths", topic: topics.find(topic => topic.id === item.topicId) })),
+        ...selectedStrategies.map(item => ({ ...item, type: "maths", topic: topics.find(topic => topic.id === item.topicId) }))
+      ];
     }
     const passages = paper === "A" ? sutton.stageTwo.passages.slice(0, 2) : sutton.stageTwo.passages.slice(2);
     const questions = passages.flatMap(passage => passage.questions.map(question => ({
       ...question, type: "reading", passage: passage.text, passageTitle: passage.title, topic: topics.find(topic => topic.id === (question.topicId || "comprehension"))
     })));
+    const labPassages = englishLab.passages.slice(paper === "A" ? 0 : 2, paper === "A" ? 2 : 4);
+    questions.push(...labPassages.flatMap(passage => {
+      const text = passage.segments.map(segment => segment.text).join("\n\n");
+      return passage.questions.filter(question => question.format === "written").map(question => ({
+        ...question, type: "reading", maxMarks: question.marks, finalAnswer: question.modelAnswer,
+        passage: text, passageTitle: passage.title, passageGenre: passage.genre, passageSegments: passage.segments, topic: topics.find(topic => topic.id === question.topicId)
+      }));
+    }));
     const writing = sutton.stageTwo.writing[paper === "A" ? 0 : 1];
     if (scope !== "nwssee") questions.push({ ...writing, type: "writing", q: writing.prompt, maxMarks: writing.criteria.length, scheme: writing.criteria, topic: topics.find(topic => topic.id === writing.topicId) });
     return questions;
@@ -582,8 +799,9 @@
     const items = writtenMockItems(subject, paper, scope);
     writtenMock = {
       subject, paper, seconds, scope, deadline: seconds ? Date.now() + seconds * 1000 : null,
-      expired: false, submitted: false, confirming: false, items, answers: items.map(() => "")
+      expired: false, submitted: false, confirming: false, items, answers: items.map(() => ""), selfMarks: items.map(() => null)
     };
+    persistWrittenMock();
     if (seconds) timer = setInterval(tickTimer, 250);
     renderWrittenMock();
     main.focus({ preventScroll: true });
@@ -603,12 +821,13 @@
       const answered = writtenMock.answers.filter(answer => answer.trim()).length;
       const profileTitle = writtenMock.scope === "tiffin-stage-two" ? "Tiffin Stage Two" : writtenMock.scope === "nwssee" ? "NWSSEE Stage 2" : "Sutton Stage 2";
       main.innerHTML = testHeader(`${profileTitle} ${label(writtenMock.subject)} Mock ${writtenMock.paper}: ready to review`, `${answered} of ${items.length} written responses contain text. Blank responses are allowed; the mock does not mark your writing automatically.`) +
-        writtenTimerMarkup() + `<section class="lesson-block"><h2>Submit for model answers and self-review?</h2><p>Your answers are kept only for this browser visit. Final submission locks this draft until you leave the review; reload abandons an unfinished mock. You can still return to add or change a response.</p><div class="quiz-controls"><button class="cta" id="written-confirm-submit" type="button">Submit and open self-review</button><button class="secondary-button" id="written-return" type="button">Return to my responses</button></div></section>`;
+        writtenTimerMarkup() + `<section class="lesson-block"><h2>Submit for model answers and self-review?</h2><p>Your responses, timer and self-awarded marks are saved on this device. Final submission locks this draft until you leave the review. You can still return to add or change a response.</p><div class="quiz-controls"><button class="cta" id="written-confirm-submit" type="button">Submit and open self-review</button><button class="secondary-button" id="written-return" type="button">Return to my responses</button></div></section>`;
       document.getElementById("written-confirm-submit").addEventListener("click", () => finishWrittenMock(false));
       document.getElementById("written-return").addEventListener("click", () => {
         tickTimer();
         if (writtenMock.submitted) return;
         writtenMock.confirming = false;
+        persistWrittenMock();
         renderWrittenMock();
       });
       return;
@@ -616,20 +835,24 @@
     let activePassage = "";
     const cards = items.map((item, index) => {
       const passage = item.passage && item.passageTitle !== activePassage
-        ? `<details open class="sutton-passage"><summary>${esc(item.passageTitle)}</summary><div class="passage long-passage">${esc(item.passage)}</div></details>` : "";
+        ? passageMarkup(item, "Original passage") : "";
       if (item.passageTitle) activePassage = item.passageTitle;
       const writing = item.type === "writing" ? `<p><strong>Purpose:</strong> ${esc(item.purpose)} · <strong>Audience:</strong> ${esc(item.audience)}</p><h4>Planning scaffold</h4><ol>${item.plan.map(step => `<li>${esc(step)}</li>`).join("")}</ol>` : "";
-      return `<article class="lesson-block sutton-mock-item"><p class="eyebrow">QUESTION ${index + 1} OF ${items.length} · ${esc(item.topic.title)} · ${item.maxMarks} self-awarded marks</p>${passage}<h3>${esc(item.q)}</h3>${writing}<label class="sutton-response-label" for="written-response-${index}">${item.type === "writing" ? "Your draft" : "Your answer and working"}</label><textarea id="written-response-${index}" data-written-index="${index}" rows="${item.type === "writing" ? 12 : 4}" placeholder="${item.type === "writing" ? "Write your response. Your draft stays on this page only." : "Show your method and final answer."}">${esc(writtenMock.answers[index])}</textarea></article>`;
+      return `<article class="lesson-block sutton-mock-item"><p class="eyebrow">QUESTION ${index + 1} OF ${items.length} · ${esc(item.topic.title)} · ${item.maxMarks} self-awarded marks</p>${passage}<h3>${esc(item.q)}</h3>${evidenceMarkup(item)}${writing}<label class="sutton-response-label" for="written-response-${index}">${item.type === "writing" ? "Your draft" : "Your answer and working"}</label><textarea id="written-response-${index}" data-written-index="${index}" rows="${item.type === "writing" ? 12 : 4}" placeholder="${item.type === "writing" ? "Write your response. Your draft is saved on this device." : "Show your method and final answer."}">${esc(writtenMock.answers[index])}</textarea></article>`;
     }).join("");
     const profileTitle = writtenMock.scope === "tiffin-stage-two" ? "Tiffin Stage Two" : writtenMock.scope === "nwssee" ? "NWSSEE Stage 2" : "Sutton Stage 2";
     const mathNote = writtenMock.scope === "tiffin-stage-two" && writtenMock.subject === "maths" ? " Tiffin's published guidance says working is not marked. The worked steps here are an instructional aid, not the school's mark scheme; final-answer accuracy matters." : "";
     main.innerHTML = testHeader(`${profileTitle} ${label(writtenMock.subject)} Mock ${writtenMock.paper}`, "Original, written-response practice. Show your working or write a full response. There is no automatic marking; model answers and self-check criteria appear after submission.") +
       writtenTimerMarkup() + `<p class="coverage-note">${items.length} written tasks in this Brightlane-created practice set. The size is not an official paper length. Timer settings are personal, with 45 minutes as a default practice option.${mathNote}</p><form id="written-mock-form">${cards}<div class="quiz-controls"><button class="cta" type="submit">Review &amp; submit written mock</button><a class="secondary-button" href="${writtenMock.scope === "sutton" ? "#sutton" : "#exams"}">Leave to ${writtenMock.scope === "sutton" ? "Sutton overview" : "exam guide"} (timer continues)</a></div></form>`;
-    document.querySelectorAll("[data-written-index]").forEach(input => input.addEventListener("input", () => { writtenMock.answers[Number(input.dataset.writtenIndex)] = input.value; }));
+    document.querySelectorAll("[data-written-index]").forEach(input => input.addEventListener("input", () => {
+      writtenMock.answers[Number(input.dataset.writtenIndex)] = input.value;
+      persistWrittenMock();
+    }));
     document.getElementById("written-mock-form").addEventListener("submit", event => {
       event.preventDefault();
       if (writtenMock.seconds && Date.now() >= writtenMock.deadline) return finishWrittenMock(true);
       writtenMock.confirming = true;
+      persistWrittenMock();
       renderWrittenMock();
       main.focus({ preventScroll: true });
       window.scrollTo(0, 0);
@@ -641,7 +864,8 @@
     writtenMock.submitted = true;
     writtenMock.confirming = false;
     stopTimer();
-    if (location.hash === "#sutton" || location.hash === "#tests" || location.hash === "#exams") {
+    persistWrittenMock();
+    if (location.hash === "#sutton" || location.hash === "#tests" || location.hash === "#exams" || location.hash === "#resume-written") {
       renderWrittenReview();
       main.focus({ preventScroll: true });
       window.scrollTo(0, 0);
@@ -656,8 +880,8 @@
       const response = writtenMock.answers[index].trim() || "No response written.";
       const guidance = item.type === "writing"
         ? `<details open><summary>Self-check rubric — no model answer or automatic grade</summary><p>Audience: ${esc(item.audience)}. Purpose: ${esc(item.purpose)}.</p><ul>${item.criteria.map(criterion => `<li>${esc(criterion)}</li>`).join("")}</ul><p>Choose and revise your own ideas; there is no single correct composition.</p></details>`
-        : `<details open><summary>Model answer and mark scheme (${item.maxMarks} marks)</summary><p><strong>Model answer:</strong> ${esc(item.finalAnswer || item.modelAnswer)}</p><ol>${(Array.isArray(item.scheme) ? item.scheme : [item.scheme]).map(step => `<li>${esc(step)}</li>`).join("")}</ol><label>My self-awarded mark<select aria-label="My self-awarded marks for question ${index + 1}">${Array.from({ length: item.maxMarks + 1 }, (_, mark) => `<option value="${mark}">${mark} of ${item.maxMarks}</option>`).join("")}</select></label></details>`;
-      return `<article class="lesson-block sutton-mock-item"><p class="eyebrow">QUESTION ${index + 1} · ${esc(item.topic.title)} · ${item.maxMarks} marks for self-check</p>${item.passage ? `<details><summary>Re-read ${esc(item.passageTitle)}</summary><div class="passage long-passage">${esc(item.passage)}</div></details>` : ""}<h3>${esc(item.q)}</h3><p class="written-response"><strong>Your response:</strong><br>${esc(response)}</p>${guidance}<button class="secondary-button sutton-reviewed" data-review-id="${item.id}" type="button"${state.suttonReviewed.includes(item.id) ? " disabled" : ""}>${state.suttonReviewed.includes(item.id) ? "Self-review saved" : "Mark this task self-reviewed"}</button></article>`;
+        : `<details open><summary>Model answer and mark scheme (${item.maxMarks} marks)</summary><p><strong>Model answer:</strong> ${esc(item.finalAnswer || item.modelAnswer)}</p><ol>${(Array.isArray(item.scheme) ? item.scheme : [item.scheme]).map(step => `<li>${esc(step)}</li>`).join("")}</ol><label>My self-awarded mark<select data-self-mark-index="${index}" aria-label="My self-awarded marks for question ${index + 1}"><option value=""${writtenMock.selfMarks[index] === null ? " selected" : ""}>Not yet assessed</option>${Array.from({ length: item.maxMarks + 1 }, (_, mark) => `<option value="${mark}"${writtenMock.selfMarks[index] === mark ? " selected" : ""}>${mark} of ${item.maxMarks}</option>`).join("")}</select></label></details>`;
+      return `<article class="lesson-block sutton-mock-item"><p class="eyebrow">QUESTION ${index + 1} · ${esc(item.topic.title)} · ${item.maxMarks} marks for self-check</p>${passageMarkup(item, "Re-read " + (item.passageTitle || "the original passage"))}<h3>${esc(item.q)}</h3>${evidenceMarkup(item)}<p class="written-response"><strong>Your response:</strong><br>${esc(response)}</p>${guidance}<button class="secondary-button sutton-reviewed" data-review-id="${item.id}" type="button"${state.suttonReviewed.includes(item.id) ? " disabled" : ""}>${state.suttonReviewed.includes(item.id) ? "Self-review saved" : "Mark this task self-reviewed"}</button></article>`;
     }).join("");
     const profileTitle = writtenMock.scope === "tiffin-stage-two" ? "Tiffin Stage Two" : writtenMock.scope === "nwssee" ? "NWSSEE Stage 2" : "Sutton Stage 2";
     main.innerHTML = testHeader(`${profileTitle} ${label(writtenMock.subject)} Mock ${writtenMock.paper}: self-review`, "Written responses are not automatically graded. Compare your work with the model answer or rubric, then record only that you completed a self-review.") +
@@ -668,11 +892,18 @@
       const count = writtenMock.items.filter(item => state.suttonReviewed.includes(item.id)).length;
       document.getElementById("written-review-count").textContent = `${count} of ${writtenMock.items.length} tasks self-reviewed`;
     }));
+    document.querySelectorAll("[data-self-mark-index]").forEach(select => select.addEventListener("change", () => {
+      writtenMock.selfMarks[Number(select.dataset.selfMarkIndex)] = select.value === "" ? null : Number(select.value);
+      persistWrittenMock();
+    }));
     document.getElementById("sutton-leave-review").addEventListener("click", () => {
       const returnToSutton = writtenMock.scope === "sutton";
       writtenMock = null;
-      if (returnToSutton) suttonPage();
-      else examGuidePage();
+      const targetHash = returnToSutton ? "#sutton" : "#exams";
+      if (location.hash === targetHash) {
+        if (returnToSutton) suttonPage();
+        else examGuidePage();
+      } else location.hash = targetHash;
       main.focus({ preventScroll: true });
       window.scrollTo(0, 0);
     });
@@ -685,12 +916,32 @@
   }
   function materialsPage() {
     const defaultTopic = topics[0];
+    const labReadings = englishLab.passages.map(passage => ({
+      id: "english-lab-" + passage.id,
+      title: passage.title,
+      genre: passage.genre,
+      passage: passage.segments.map(segment => segment.text).join("\n\n"),
+      segments: passage.segments,
+      questions: passage.questions.filter(question => question.format === "select-one")
+        .map(question => ({ ...question, passage: passage.segments.map(segment => segment.text).join("\n\n"), passageGenre: passage.genre, passageSegments: passage.segments }))
+    }));
+    const allReadings = [...studyMaterials.readings, ...labReadings];
+    const topicWriting = studyMaterials.writing.map((item, index) => ({
+      ...item, id: item.id || "study-writing-" + String(index + 1).padStart(3, "0")
+    }));
+    const stageTwoWriting = [...sutton.stageTwo.writing, ...englishLab.writingPrompts];
     main.innerHTML = `<div class="page-header"><p class="eyebrow">YOUR OFFLINE REVISION LIBRARY</p><h1>Study materials, ready when you are.</h1><p>Topic sheets, clear reference notes, original longer reading practice, scenario practice and writing plans. <a href="#scenarios">Browse original exam-style scenarios</a> or print a worksheet; all material is bundled for offline use.</p></div>
-      <nav class="material-nav" aria-label="Study material sections"><button type="button" data-material-target="revision-section">Topic revision sheets</button><button type="button" data-material-target="reference-section">Maths &amp; English reference</button><button type="button" data-material-target="reading-section">Longer comprehension</button><button type="button" data-material-target="writing-section">Writing workshop</button><button type="button" data-material-target="worksheet-section">Printable worksheets</button></nav>
+      <nav class="material-nav" aria-label="Study material sections"><button type="button" data-material-target="revision-section">Topic revision sheets</button><button type="button" data-material-target="reference-section">Maths &amp; English reference</button><button type="button" data-material-target="strategy-section">Maths strategies</button><button type="button" data-material-target="reading-section">Longer comprehension</button><button type="button" data-material-target="type-practice-section">Comprehension types</button><button type="button" data-material-target="writing-section">Writing workshop</button><button type="button" data-material-target="worksheet-section">Printable worksheets</button></nav>
       <section class="lesson-block material-section" id="revision-section"><p class="eyebrow">30 TOPIC-LINKED SUMMARIES</p><h2>Topic revision sheet</h2><div class="material-controls"><label>Choose a topic<select id="revision-topic">${topics.map(topic => `<option value="${topic.id}">${label(topic.subject)}: ${esc(topic.title)}</option>`).join("")}</select></label><button class="secondary-button print-material" id="print-revision" type="button">Print revision sheet</button></div><article class="revision-sheet printable-material" id="revision-sheet" aria-live="polite">${revisionSheet(defaultTopic)}</article></section>
       <section class="lesson-block material-section printable-material" id="reference-section"><p class="eyebrow">QUICK LOOK-UP</p><h2>Maths methods &amp; English language reference</h2><p>Use these short reminders to check a method, then revisit the linked lesson for fuller worked practice. Spelling patterns are useful clues, not rules without exceptions.</p><div class="material-controls"><button class="secondary-button print-material" id="print-reference" type="button">Print reference cards</button></div><h3>Maths</h3><div class="reference-grid">${studyMaterials.reference.filter(item => item.subject === "maths").map(item => `<article class="reference-card"><h4>${esc(item.title)}</h4><p>${esc(item.rule)}</p><p><strong>Example:</strong> ${esc(item.example)}</p><a href="#topic/${item.topicId}">Revise ${esc(topics.find(t => t.id === item.topicId).title)}</a></article>`).join("")}</div><h3>English</h3><div class="reference-grid">${studyMaterials.reference.filter(item => item.subject === "english").map(item => `<article class="reference-card"><h4>${esc(item.title)}</h4><p>${esc(item.rule)}</p><p><strong>Example:</strong> ${esc(item.example)}</p><a href="#topic/${item.topicId}">Revise ${esc(topics.find(t => t.id === item.topicId).title)}</a></article>`).join("")}</div></section>
-      <section class="lesson-block material-section" id="reading-section"><p class="eyebrow">3 ORIGINAL PASSAGES &middot; 12 EXPLAINED QUESTIONS</p><h2>Longer comprehension practice</h2><p>Read the passage closely, then answer each question. You will see feedback and explanations after each choice. Look for evidence in the text; these are practice passages, not exam-provider material.</p>${studyMaterials.readings.map(reading => `<article class="reading-card"><h3>${esc(reading.title)}</h3><p>${reading.passage.trim().split(/\s+/).length} words &middot; four questions</p><details><summary>Read the full passage</summary><p class="long-passage">${esc(reading.passage)}</p></details><button class="cta start-reading" type="button" data-reading="${reading.id}">Start questions</button><section class="reading-quiz practice-panel" id="quiz-${reading.id}" hidden aria-label="${esc(reading.title)} questions"></section></article>`).join("")}</section>
-      <section class="lesson-block material-section" id="writing-section"><p class="eyebrow">PLAN, DRAFT, EDIT</p><h2>Writing workshop</h2><p>These prompts invite original writing. The scaffold helps you plan; the self-check is for reflection only. Brightlane does not automatically grade extended writing.</p><div class="writing-grid">${studyMaterials.writing.map((item, index) => `<article class="writing-card"><p class="eyebrow">${esc(item.form)} ${index + 1}</p><h3>${esc(item.title)}</h3><p>${esc(item.prompt)}</p><h4>Planning scaffold</h4><ol>${item.plan.map(step => `<li>${esc(step)}</li>`).join("")}</ol><h4>Self-check rubric</h4><ul>${item.checks.map(check => `<li>${esc(check)}</li>`).join("")}</ul></article>`).join("")}</div><button class="secondary-button print-material" id="print-writing" type="button">Print writing prompts &amp; self-checks</button></section>
+      <section class="lesson-block material-section printable-material" id="strategy-section"><p class="eyebrow">${mathsLab.strategies.length} WORKED APPROACHES</p><h2>Choose a way into a problem.</h2><p>These are learning strategies, not compulsory methods or official marking schemes.</p><div class="writing-grid">${mathsLab.strategies.map(strategy => `<article class="writing-card"><h3>${esc(strategy.title)}</h3><p>${esc(strategy.explanation)}</p><ol>${strategy.steps.map(step => `<li>${esc(step)}</li>`).join("")}</ol><h4>Worked example</h4><p><strong>${esc(strategy.workedExample.q)}</strong></p><p><strong>Final answer:</strong> ${esc(strategy.workedExample.finalAnswer)}</p><ol>${strategy.workedExample.scheme.map(step => `<li>${esc(step)}</li>`).join("")}</ol></article>`).join("")}</div><button class="secondary-button print-material" id="print-strategies" type="button">Print strategy lessons</button></section>
+      <section class="lesson-block material-section" id="reading-section"><p class="eyebrow">${allReadings.length} ORIGINAL PASSAGES &middot; ${allReadings.reduce((sum, reading) => sum + reading.questions.length, 0)} INTERACTIVE SELECT-ONE QUESTIONS</p><h2>Longer comprehension practice</h2><p>Read the passage closely, then answer each interactive question. The four new passage sets also have written-response tasks in the shared catalogue and Stage 2 practice; written answers are self-assessed, not automatically marked.</p>${allReadings.map(reading => `<article class="reading-card"><h3>${esc(reading.title)}</h3><p>${reading.passage.trim().split(/\s+/).length} words · ${reading.questions.length} interactive questions${reading.segments ? " · four written questions in the catalogue" : ""}</p><details><summary>Read the full passage</summary>${reading.segments ? `<div class="passage passage-segments">${passageSegmentsMarkup(reading.segments, reading.genre)}</div>` : `<p class="long-passage">${esc(reading.passage)}</p>`}</details><button class="cta start-reading" type="button" data-reading="${esc(reading.id)}">Start questions</button><section class="reading-quiz practice-panel" id="quiz-${esc(reading.id)}" hidden aria-label="${esc(reading.title)} questions"></section></article>`).join("")}</section>
+      <section class="lesson-block material-section" id="type-practice-section"><p class="eyebrow">${englishLab.typeQuestions.length} ORIGINAL EXERCISES</p><h2>Recognise the question type.</h2><p>Practise identifying retrieval, inference, vocabulary, language, purpose, summary and true/false/not-given questions before answering them.</p><section class="practice-panel" id="type-question-quiz" hidden aria-label="Comprehension question-type practice"></section><button class="cta" id="start-type-practice" type="button"${englishLab.typeQuestions.length ? "" : " disabled"}>Start question-type practice</button></section>
+      <section class="lesson-block material-section" id="writing-section"><p class="eyebrow">PLAN, DRAFT, EDIT</p><h2>Writing workshop</h2><p>These prompts invite original writing. The scaffold helps you plan; the self-check is for reflection only. Brightlane does not automatically grade extended writing.</p><h3>Stage 2 prompt bank: ${stageTwoWriting.length} prompts</h3><p>The bank combines eight existing Sutton-style prompts with 22 new original prompts. These are practice settings, not an official school task mix.</p><div class="writing-grid" id="stage-two-writing-prompts">${stageTwoWriting.map(item => {
+        const promptType = item.type || item.form || "Writing practice";
+        const criteria = item.criteria || item.checks || [];
+        return `<article class="writing-card"><p class="eyebrow">${esc(promptType)}</p><h3>${esc(item.title || promptType)}</h3><p>${esc(item.prompt)}</p>${item.audience || item.purpose ? `<p>${item.audience ? `<strong>Audience:</strong> ${esc(item.audience)}` : ""}${item.audience && item.purpose ? " · " : ""}${item.purpose ? `<strong>Purpose:</strong> ${esc(item.purpose)}` : ""}</p>` : ""}<h4>Planning scaffold</h4><ol>${item.plan.map(step => `<li>${esc(step)}</li>`).join("")}</ol><label class="sutton-response-label" for="writing-draft-${esc(item.id)}">Your draft (saved on this device)</label><textarea id="writing-draft-${esc(item.id)}" data-writing-draft="${esc(item.id)}" rows="8" maxlength="10000">${esc(state.writingDrafts[item.id] || "")}</textarea><h4>Self-check rubric — not an automatic grade</h4><ul>${criteria.map(criterion => `<li>${esc(criterion)}</li>`).join("")}</ul></article>`;
+      }).join("")}</div><h3>Additional topic prompts: ${topicWriting.length}</h3><div class="writing-grid" id="topic-writing-prompts">${topicWriting.map(item => `<article class="writing-card"><p class="eyebrow">${esc(item.form)}</p><h3>${esc(item.title)}</h3><p>${esc(item.prompt)}</p><h4>Planning scaffold</h4><ol>${item.plan.map(step => `<li>${esc(step)}</li>`).join("")}</ol><label class="sutton-response-label" for="writing-draft-${esc(item.id)}">Your draft (saved on this device)</label><textarea id="writing-draft-${esc(item.id)}" data-writing-draft="${esc(item.id)}" rows="8" maxlength="10000">${esc(state.writingDrafts[item.id] || "")}</textarea><h4>Self-check rubric — not an automatic grade</h4><ul>${item.checks.map(check => `<li>${esc(check)}</li>`).join("")}</ul></article>`).join("")}</div><button class="secondary-button print-material" id="print-writing" type="button">Print writing prompts &amp; self-checks</button></section>
       <section class="lesson-block material-section" id="worksheet-section"><p class="eyebrow">PAPER PRACTICE</p><h2>Printable topic worksheets</h2><p>Choose any of the 30 topics for a short three-question worksheet. Print includes an answer key and explanations on a separate page; you can also open the full interactive lesson.</p><div class="material-controls"><label>Worksheet topic<select id="worksheet-topic">${topics.map(topic => `<option value="${topic.id}">${label(topic.subject)}: ${esc(topic.title)}</option>`).join("")}</select></label><button class="cta print-material" id="print-worksheet" type="button">Print worksheet &amp; answer key</button></div><div class="worksheet-output" id="worksheet-output">${worksheetMarkup(defaultTopic)}</div></section>
       <p class="coverage-note">The library draws on the site's 30 original topic lessons. It is a broad revision resource, not an exhaustive curriculum or an official paper. School and provider content varies; check current guidance for the target exam.</p>`;
     document.querySelectorAll("[data-material-target]").forEach(button => button.addEventListener("click", () => document.getElementById(button.dataset.materialTarget).scrollIntoView({ behavior: "auto", block: "start" })));
@@ -699,18 +950,31 @@
     });
     document.getElementById("print-revision").addEventListener("click", () => printMaterial("revision-section"));
     document.getElementById("print-reference").addEventListener("click", () => printMaterial("reference-section"));
+    document.getElementById("print-strategies").addEventListener("click", () => printMaterial("strategy-section"));
     document.getElementById("print-writing").addEventListener("click", () => printMaterial("writing-section"));
     document.getElementById("worksheet-topic").addEventListener("change", event => {
       document.getElementById("worksheet-output").innerHTML = worksheetMarkup(topics.find(topic => topic.id === event.target.value));
     });
     document.getElementById("print-worksheet").addEventListener("click", () => printMaterial("worksheet-section"));
+    document.querySelectorAll("[data-writing-draft]").forEach(input => input.addEventListener("input", () => {
+      state.writingDrafts[input.dataset.writingDraft] = input.value;
+      save();
+    }));
     document.querySelectorAll(".start-reading").forEach(button => button.addEventListener("click", () => {
-      const reading = studyMaterials.readings.find(item => item.id === button.dataset.reading);
+      const reading = allReadings.find(item => item.id === button.dataset.reading);
       const panel = document.getElementById("quiz-" + reading.id);
       panel.hidden = false;
       startQuiz(reading.questions.map(q => ({ ...q, topic: topics.find(topic => topic.id === q.topicId) })), panel.id, null);
       panel.scrollIntoView({ block: "start", behavior: "auto" });
     }));
+    document.getElementById("start-type-practice").addEventListener("click", () => {
+      const items = shuffle(englishLab.typeQuestions.map(item => progress.byId.get(item.id)).filter(Boolean));
+      const panel = document.getElementById("type-question-quiz");
+      panel.hidden = false;
+      startQuiz(items, panel.id, null);
+      panel.scrollIntoView({ block: "start", behavior: "auto" });
+      focusQuiz();
+    });
   }
   function filteredCards() {
     return window.BRIGHTLANE_FLASHCARDS.filter(card => {
@@ -718,7 +982,8 @@
       return (cardFilters.subject === "all" || topic.subject === cardFilters.subject) &&
         (cardFilters.topic === "all" || card.topicId === cardFilters.topic) &&
         (cardFilters.exam === "all" || card.exam === cardFilters.exam) &&
-        (!cardFilters.again || state.cardRatings[card.id] === "again");
+        (!cardFilters.again || state.cardRatings[card.id] === "again") &&
+        (!cardFilters.dueOnly || reviewIsDue(card.id));
     });
   }
   function flashcardsPage() {
@@ -726,6 +991,7 @@
     main.innerHTML = `<div class="page-header"><p class="eyebrow">A LITTLE ACTIVE RECALL</p><h1>Flashcards that make ideas stick.</h1><p>Try saying the answer before revealing it. Then choose "Know it" or "Practise again". These are your own judgements, not automatically marked answers.</p></div>
       <div class="filters"><label>Exam format<select id="card-exam">${[["all", "All exam formats"], ["General revision", "General revision"], ["SET", "SET Stage 1"], ["NWSSEE Stage 2", "NWSSEE Stage 2"], ["Tiffin Stage One", "Tiffin Stage One"], ["Tiffin Stage Two", "Tiffin Stage Two"], ["All exams", "Shared exam recall"]].map(([value, text]) => `<option value="${esc(value)}"${cardFilters.exam === value ? " selected" : ""}>${esc(text)}</option>`).join("")}</select></label><label>Subject<select id="card-subject">${[["all", "Maths & English"], ["maths", "Maths"], ["english", "English"]].map(([value, text]) => `<option value="${value}"${cardFilters.subject === value ? " selected" : ""}>${esc(text)}</option>`).join("")}</select></label><label>Topic<select id="card-topic"><option value="all">All topics</option>${availableTopics.map(t => `<option value="${t.id}"${cardFilters.topic === t.id ? " selected" : ""}>${esc(t.title)}</option>`).join("")}</select></label></div>
       <label class="card-revision-filter"><input type="checkbox" id="cards-again-only"${cardFilters.again ? " checked" : ""}> Only saved "practise again" cards</label>
+      <label class="card-revision-filter"><input type="checkbox" id="cards-due-only"${cardFilters.dueOnly ? " checked" : ""}> Only cards due for spaced review</label>
       <p class="coverage-note">Saved self-assessments survive reloads when browser storage is available. Changing a filter or restarting clears this round only, not saved ratings. Your current deck order/revealed answer lasts for this visit. Lesson and test progress are unchanged.</p>
       <section id="flashcard-deck" aria-label="Flashcard study deck"></section>`;
     document.getElementById("card-subject").addEventListener("change", event => {
@@ -737,11 +1003,92 @@
       deck = null; renderDeck();
     });
     document.getElementById("cards-again-only").addEventListener("change", event => { cardFilters.again = event.target.checked; deck = null; renderDeck(); });
+    document.getElementById("cards-due-only").addEventListener("change", event => { cardFilters.dueOnly = event.target.checked; deck = null; renderDeck(); });
     document.getElementById("card-topic").addEventListener("change", event => {
       cardFilters.topic = event.target.value;
       deck = null; renderDeck();
     });
     renderDeck();
+  }
+  function vocabularyPage() {
+    let spellingQueue = [];
+    let spellingIndex = 0;
+    let spellingChecked = false;
+    let referenceVisible = 60;
+    main.innerHTML = `<div class="page-header"><p class="eyebrow">WORDS · MEANING · SPELLING</p><h1>Grow vocabulary and spelling.</h1><p>Search 300 original vocabulary reference entries, practise 200 explained cloze/synonym/antonym questions, and revisit 104 spelling exercises representing the 100 printed Year 5/6 statutory list entries.</p></div>
+      <div class="stats" aria-label="Vocabulary contents"><div class="stat"><strong>${vocabulary.entries.length}</strong><span>reference words<br>not exam questions</span></div><div class="stat"><strong>${vocabulary.questions.length}</strong><span>graded practice<br>with explanations</span></div><div class="stat"><strong>${vocabulary.spellings.length}</strong><span>spelling exercises<br>from 100 list entries</span></div></div>
+      <section class="lesson-block"><h2>Vocabulary practice</h2><p>Questions use the same stable IDs as the question catalogue and saved results. Try one question type at a time; each answer includes an explanation.</p><div class="quiz-controls"><button class="cta vocabulary-practice" data-type="cloze" type="button">Cloze (100)</button><button class="secondary-button vocabulary-practice" data-type="synonym" type="button">Synonyms (50)</button><button class="secondary-button vocabulary-practice" data-type="antonym" type="button">Antonyms (50)</button></div><section class="practice-panel" id="vocabulary-quiz" hidden aria-label="Vocabulary practice questions"></section></section>
+      <section class="lesson-block"><h2>Spelling recall</h2><p>Type the missing word exactly, then check it. Your answer is checked for spelling; this records a practice result and a future recall date, not a mastery claim.</p><button class="secondary-button" id="start-spelling" type="button">Start a due spelling sprint</button><section class="practice-panel" id="spelling-practice" hidden aria-label="Spelling practice"></section></section>
+      <section class="lesson-block"><h2>Search the word reference</h2>      <div class="filters"><label>Search<input id="vocabulary-search" type="search" value="${esc(vocabularySearch)}" placeholder="Find a word, meaning or example"></label><label>Difficulty<select id="vocabulary-difficulty"><option value="all">All levels</option><option value="foundation">Foundation</option><option value="stretch">Stretch</option><option value="challenge">Challenge</option></select></label><label>Word class<select id="vocabulary-class"><option value="all">All word classes</option><option>noun</option><option>verb</option><option>adjective</option><option>adverb</option></select></label></div><p id="vocabulary-count" class="result-count" role="status" aria-live="polite"></p><div id="vocabulary-results" class="vocabulary-grid"></div></section>
+      <section class="lesson-block"><h2>Spaced recall, at your pace</h2><p>Flashcard ratings and correctly spelled answers schedule a next review using a simple Leitner interval. “Know it” and “Practise again” remain self-assessments; an opened or reviewed card does not count as mastery.</p><p><strong>${window.BRIGHTLANE_FLASHCARDS.filter(card => reviewIsDue(card.id)).length}</strong> cards are due today or not yet scheduled.</p><button class="secondary-button" id="review-due-cards" type="button">Review cards due now</button></section>
+      <section class="lesson-block"><p class="eyebrow">SOURCE &amp; LICENCE</p><h2>Year 5/6 spelling list</h2><p>${esc(vocabulary.sources.scope)}</p><p>${esc(vocabulary.sources.notes)}</p><p>${esc(vocabulary.sources.licence)}</p><p><a href="${esc(vocabulary.sources.url)}" target="_blank" rel="noopener noreferrer">${esc(vocabulary.sources.title)} · ${esc(vocabulary.sources.publisher)} · page ${vocabulary.sources.page} <span class="sr-only">(optional external source)</span></a> · checked ${esc(vocabulary.sources.checkedDate)}.</p><details><summary>View the 100 printed statutory entries and forms</summary><p>${vocabulary.sources.statutoryList.map(esc).join("; ")}</p></details><p class="coverage-note">The source list and its printed notes are DfE material under the stated licence. Definitions, examples, spelling sentences, questions and explanations are original Brightlane practice. External access is optional; the bundled content works offline.</p></section>`;
+    function renderReference(reset = false) {
+      if (reset) referenceVisible = 60;
+      const query = document.getElementById("vocabulary-search").value.trim().toLocaleLowerCase("en-GB");
+      vocabularySearch = document.getElementById("vocabulary-search").value;
+      const difficulty = document.getElementById("vocabulary-difficulty").value;
+      const wordClass = document.getElementById("vocabulary-class").value;
+      const matches = vocabulary.entries.filter(entry =>
+        (!query || [entry.word, entry.definition, entry.synonym, entry.antonym, entry.example, ...entry.family].join(" ").toLocaleLowerCase("en-GB").includes(query))
+        && (difficulty === "all" || entry.difficulty === difficulty)
+        && (wordClass === "all" || entry.partOfSpeech === wordClass));
+      const displayed = matches.slice(0, referenceVisible);
+      document.getElementById("vocabulary-count").textContent = `Showing ${displayed.length} of ${matches.length} matching reference entries`;
+      document.getElementById("vocabulary-results").innerHTML = matches.length ? `${displayed.map(entry => `
+        <article class="vocabulary-card"><p class="eyebrow">${esc(entry.partOfSpeech)} · ${esc(entry.difficulty)}</p><h3>${esc(entry.word)}</h3><p>${esc(entry.definition)}</p><p><strong>Similar:</strong> ${esc(entry.synonym)} · <strong>Opposite:</strong> ${esc(entry.antonym)}</p><p><strong>Example:</strong> ${esc(entry.example)}</p>${entry.family.length ? `<p><strong>Word family:</strong> ${entry.family.map(esc).join(", ")}</p>` : ""}</article>`).join("")}<div class="catalogue-pagination">${matches.length > displayed.length ? `<button class="secondary-button" id="vocabulary-load-more" type="button">Show next ${Math.min(60, matches.length - displayed.length)} words</button>` : ""}</div>` : `<p class="empty">No reference entries match those filters.</p>`;
+      const loadMore = document.getElementById("vocabulary-load-more");
+      if (loadMore) loadMore.addEventListener("click", () => { referenceVisible += 60; renderReference(); });
+    }
+    document.getElementById("vocabulary-search").addEventListener("input", () => renderReference(true));
+    document.getElementById("vocabulary-difficulty").addEventListener("change", () => renderReference(true));
+    document.getElementById("vocabulary-class").addEventListener("change", () => renderReference(true));
+    document.querySelectorAll(".vocabulary-practice").forEach(button => button.addEventListener("click", () => {
+      const items = shuffle(progress.questions.filter(question => question.type === button.dataset.type));
+      const panel = document.getElementById("vocabulary-quiz");
+      panel.hidden = false;
+      startQuiz(items.slice(0, 10), panel.id, null);
+      panel.scrollIntoView({ block: "start" });
+      focusQuiz();
+    }));
+    document.getElementById("start-spelling").addEventListener("click", () => {
+      const due = vocabulary.spellings.filter(item => reviewIsDue(item.id));
+      const target = vocabulary.spellings.find(item => item.id === spellingTargetId);
+      const pool = due.length ? due : vocabulary.spellings.slice();
+      spellingQueue = target ? [target, ...shuffle(pool.filter(item => item.id !== target.id)).slice(0, 9)] : shuffle(pool).slice(0, 10);
+      spellingTargetId = "";
+      spellingIndex = 0;
+      spellingChecked = false;
+      document.getElementById("spelling-practice").hidden = false;
+      renderSpelling();
+      document.getElementById("spelling-practice").scrollIntoView({ block: "start" });
+    });
+    function renderSpelling() {
+      const panel = document.getElementById("spelling-practice");
+      if (spellingIndex >= spellingQueue.length) {
+        panel.innerHTML = `<div class="quiz-complete"><h2>Spelling sprint complete.</h2><p>Your due dates are saved with progress; no review click is counted as mastery.</p><button class="secondary-button" id="spelling-restart" type="button">Start another spelling sprint</button></div>`;
+        document.getElementById("spelling-restart").addEventListener("click", () => document.getElementById("start-spelling").click());
+        return;
+      }
+      const item = spellingQueue[spellingIndex];
+      panel.innerHTML = `<p class="quiz-meta">Spelling ${spellingIndex + 1} of ${spellingQueue.length} · answer with one word</p><h3>${esc(item.sentence)}</h3><p class="coverage-note">${esc(item.clue)}</p><form id="spelling-form"><label for="spelling-answer">Your spelling</label><input id="spelling-answer" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"${spellingChecked ? " disabled" : ""}><div class="quiz-controls"><button class="cta" type="submit"${spellingChecked ? " disabled" : ""}>Check spelling</button>${spellingChecked ? `<button class="secondary-button" id="spelling-next" type="button">${spellingIndex + 1 === spellingQueue.length ? "Finish sprint" : "Next word"}</button>` : ""}</div><p id="spelling-feedback" class="status-line" role="status" aria-live="polite">${spellingChecked ? "Correct spelling: " + esc(item.word) + ". " + esc(item.clue) : ""}</p></form>`;
+      document.getElementById("spelling-form").addEventListener("submit", event => {
+        event.preventDefault();
+        if (spellingChecked) return;
+        const answer = document.getElementById("spelling-answer").value.trim();
+        if (!answer) { document.getElementById("spelling-feedback").textContent = "Type a spelling before checking."; return; }
+        spellingChecked = true;
+        const correct = answer.toLocaleLowerCase("en-GB") === item.word.toLocaleLowerCase("en-GB");
+        scheduleReview(item.id, correct);
+        renderSpelling();
+        document.getElementById("spelling-feedback").textContent = `${correct ? "Correct." : "Check the spelling."} The answer is ${item.word}. ${item.clue}`;
+      });
+      if (spellingChecked) document.getElementById("spelling-next").addEventListener("click", () => { spellingIndex++; spellingChecked = false; renderSpelling(); });
+    }
+    document.getElementById("review-due-cards").addEventListener("click", () => {
+      cardFilters = { subject: "all", topic: "all", exam: "all", dueOnly: true };
+      location.hash = "flashcards";
+    });
+    renderReference();
   }
   function newDeck(cards) {
     deck = { cards: cards.slice(), index: 0, revealed: false, ratings: {}, complete: false };
@@ -755,7 +1102,7 @@
     const panel = document.getElementById("flashcard-deck");
     if (!deck.cards.length) {
       panel.innerHTML = `<div class="lesson-block"><h2>No cards in this deck.</h2><p>No cards match these filters or saved practise-again ratings. Choose another topic or return to all cards.</p><button id="cards-show-all" type="button" class="cta">Show all flashcards</button></div>`;
-      document.getElementById("cards-show-all").addEventListener("click", () => { cardFilters = { subject: "all", topic: "all", exam: "all" }; deck = null; flashcardsPage(); focusDeck(); });
+      document.getElementById("cards-show-all").addEventListener("click", () => { cardFilters = { subject: "all", topic: "all", exam: "all", dueOnly: false }; deck = null; flashcardsPage(); focusDeck(); });
       return;
     }
     const rated = Object.keys(deck.ratings).length;
@@ -770,8 +1117,11 @@
     const card = deck.cards[deck.index];
     const topic = topics.find(t => t.id === card.topicId);
     const rating = deck.ratings[card.id];
+    const linkedEntry = vocabulary.entries.find(entry => entry.id === card.sourceId);
+    const linkedSpelling = vocabulary.spellings.find(item => item.id === card.sourceId);
+    const linkedQuestion = progress.byId.get(card.sourceId);
     panel.innerHTML = `<div class="card-study-bar"><p>Card ${deck.index + 1} of ${deck.cards.length} &middot; ${label(topic.subject)} &middot; ${esc(topic.title)}</p><button class="secondary-button" id="cards-shuffle" type="button">Shuffle deck</button></div>
-      <article class="recall-card"><p class="eyebrow">THINK FIRST, THEN REVEAL</p><h2>${esc(card.front)}</h2><button class="cta" id="card-reveal" type="button" aria-expanded="${deck.revealed}" aria-controls="card-answer">${deck.revealed ? "Hide answer" : "Reveal answer"}</button><div id="card-answer" class="card-answer"${deck.revealed ? "" : " hidden"}><h3>Answer &amp; explanation</h3><p>${esc(card.back)}</p><a class="text-button" href="#topic/${topic.id}">Revisit ${esc(topic.title)}</a></div>
+      <article class="recall-card"><p class="eyebrow">THINK FIRST, THEN REVEAL</p><h2>${esc(card.front)}</h2><button class="cta" id="card-reveal" type="button" aria-expanded="${deck.revealed}" aria-controls="card-answer">${deck.revealed ? "Hide answer" : "Reveal answer"}</button><div id="card-answer" class="card-answer"${deck.revealed ? "" : " hidden"}><h3>Answer &amp; explanation</h3><p>${esc(card.back)}</p><a class="text-button" href="#topic/${topic.id}">Revisit ${esc(topic.title)}</a>${linkedEntry ? `<a class="text-button" href="#vocabulary" data-vocabulary-entry="${esc(linkedEntry.id)}">Open word record: ${esc(linkedEntry.word)}</a>` : ""}${linkedSpelling ? `<a class="text-button" href="#vocabulary" data-spelling-entry="${esc(linkedSpelling.id)}">Practise spelling ${esc(linkedSpelling.word)}</a>` : ""}${linkedQuestion ? `<a class="text-button" href="#catalogue" data-catalogue-question="${esc(linkedQuestion.id)}">Open related question ${esc(linkedQuestion.id)}</a>` : ""}</div>
       <div class="quiz-controls" id="card-assessment"${deck.revealed ? "" : " hidden"}><button class="secondary-button" id="card-again" type="button">Practise again</button><button class="cta" id="card-known" type="button">Know it</button></div><p class="status-line" id="card-status" role="status">${rating ? "This round: " + (rating === "known" ? "know it" : "practise again") + ". " : "Not assessed yet in this round. "}${state.cardRatings[card.id] ? "Saved assessment: " + (state.cardRatings[card.id] === "known" ? "know it" : "practise again") + ". Reveal to update." : "No saved assessment."}</p></article>
       <div class="card-navigation"><button class="secondary-button" id="card-previous" type="button"${deck.index === 0 ? " disabled" : ""}>Previous card</button><p id="deck-progress">${rated} of ${deck.cards.length} assessed &middot; ${known} known</p><button class="secondary-button" id="card-next" type="button"${deck.index === deck.cards.length - 1 ? " disabled" : ""}>Next card</button></div><p class="coverage-note">Previous and Next let you skip or revisit without rating. Self-assessment moves to the next unassessed card. Shuffle changes order, hides the answer and keeps your assessments.</p>`;
     document.getElementById("card-reveal").addEventListener("click", event => {
@@ -791,6 +1141,7 @@
     function assess(value) {
       deck.ratings[card.id] = value;
       state.cardRatings[card.id] = value;
+      scheduleReview(card.id, value === "known");
       save();
       const remaining = deck.cards.findIndex((item, index) => index > deck.index && !deck.ratings[item.id]);
       const firstRemaining = deck.cards.findIndex(item => !deck.ratings[item.id]);
@@ -802,14 +1153,19 @@
   }
   function testQuestions(subject, count) {
     const groups = shuffle(topics.filter(t => t.subject === subject).map(t =>
-      shuffle(window.BRIGHTLANE_TEST_BANK.filter(q => q.topicId === t.id).map(q => ({ ...q, topic: t })))
-    ));
+      shuffle(progress.questions.filter(q => q.topicId === t.id))
+    ).filter(group => group.length));
     // Take one per topic before extras so subject tests sample the full syllabus.
     const first = groups.map(group => group[0]);
     return [...first, ...shuffle(groups.flatMap(group => group.slice(1)))].slice(0, count);
   }
   function startTest(mode, items, seconds = 0, kind = "test", extended = false) {
     stopTimer();
+    if ((writtenMock && !writtenMock.submitted) || (state.writtenDraft && !state.writtenDraft.submitted)) {
+      writtenMock = null;
+      state.writtenDraft = null;
+      save();
+    }
     writtenMock = null;
     const count = extended ? (mode === "maths" ? 36 : mode === "english" ? 24 : 40) : 20;
     const selected = items || shuffle(mode === "mixed" ? [...testQuestions("maths", count / 2), ...testQuestions("english", count / 2)] : testQuestions(mode, count));
@@ -872,7 +1228,7 @@
       return;
     }
     main.innerHTML = testHeader("A bigger step, at your own pace.", "Put your learning together in an original practice test. Unlike short practice, answers stay hidden until you submit.") +
-      `<section class="lesson-block test-instructions"><h2>Before you start</h2><ul><li>Choose a 20-question test or an extended set: Maths 36, English 24, mixed 40 (20 per subject). Select one answer per question; use paper for working and practise Maths without a calculator.</li><li>Untimed is the accessible default. An optional 15, 25 or 40 minute timer is a personal practice setting, not an official exam duration. It continues during navigation, confirmation or tab inactivity, and automatically submits when time runs out, with blanks scoring zero. Reloading abandons an unfinished test; completed results are saved. The timer uses your device clock, so keep it accurate.</li><li>Use Previous, Next or question numbers to revisit answers. Manual submission asks for confirmation; timer expiry does not. Correct answers earn one mark; wrong or blank responses earn zero with no deductions.</li><li>Subject tests sample all their lesson topics before extras; mixed sets are balanced by subject. Repeated sets shuffle a finite bank of 60 separate questions, so they can repeat. They are not official papers or standardised admission predictions.</li></ul></section>
+      `      <section class="lesson-block test-instructions"><h2>Before you start</h2><ul><li>Choose a 20-question test or an extended set: Maths 36, English 24, mixed 40 (20 per subject). Follow each question's instructions, including select-two and digit-entry formats; use paper for working and practise Maths without a calculator.</li><li>Untimed is the accessible default. An optional 15, 25 or 40 minute timer is a personal practice setting, not an official exam duration. It continues during navigation, confirmation or tab inactivity, and automatically submits when time runs out, with blanks scoring zero. Reloading abandons an unfinished test; completed results are saved. The timer uses your device clock, so keep it accurate.</li><li>Use Previous, Next or question numbers to revisit answers. Manual submission asks for confirmation; timer expiry does not. Correct answers earn one mark; wrong or blank responses earn zero with no deductions in these Brightlane practice sets.</li><li>Subject tests sample all available topics before extras; mixed sets are balanced by subject. Mocks draw from the canonical practice catalogue and can reuse a question across separate attempts. They are not official papers or standardised admission predictions.</li></ul></section>
       <div class="filters"><label>Set length<select id="test-length"><option value="20">20 questions</option><option value="extended">Extended: Maths 36 / English 24 / mixed 40</option></select></label><label>Timing<select id="test-timing"><option value="0">Untimed (default)</option><option value="900">15 minutes</option><option value="1500">25 minutes</option><option value="2400">40 minutes</option></select></label></div>
       <div class="test-mode-grid">${["maths", "english", "mixed"].map(mode => `<section class="lesson-block test-mode"><p class="eyebrow">YOUR CHOICE OF LENGTH &amp; TIMING</p><h2>${testLabel(mode)} test</h2><p>${mode === "mixed" ? "Connect both subjects in a balanced question set." : mode === "maths" ? "Numbers, calculations, measures, geometry and data across 18 topics." : "Original reading passages, language, grammar and writing skills across 12 topics."}</p><button class="cta start-test" type="button" data-mode="${mode}">Start ${testLabel(mode)} test</button></section>`).join("")}</div>
       <p class="coverage-note">These are original practice tests, not official papers, standardised scores or predictions of admission. Sets draw from a separate bank of ${window.BRIGHTLANE_TEST_BANK.length} questions; repeated attempts may share questions. School and provider requirements vary, and extended writing is not automatically graded.</p>`;
@@ -899,7 +1255,9 @@
         : "Take your time. Your choices are kept while you move between questions. No answers are revealed until final submission.";
     main.innerHTML = testHeader(testTitle(exam), description) +
       timerMarkup() + `<div class="test-layout"><section class="practice-panel" id="test-question-panel"><div class="quiz-meta"><span>Question ${exam.index + 1} of ${exam.items.length}</span><span>${label(item.topic.subject)} &middot; ${esc(item.topic.title)}</span></div><h2>Your next question</h2>
-      ${item.passage ? `<details open><summary>Original passage for this question</summary><div class="passage">${esc(item.passage)}</div></details>` : ""}
+      ${passageMarkup(item)}
+      ${evidenceMarkup(item)}
+      ${visualMarkup(item)}
       <form id="test-form">${answerChoices(item, exam.answers[exam.index])}<p class="status-line" id="test-answer-status" role="status"></p><div class="quiz-controls"><button id="test-previous" class="secondary-button" type="button"${exam.index === 0 ? " disabled" : ""}>Previous</button><button id="test-next" class="cta" type="button"${exam.index === exam.items.length - 1 ? " disabled" : ""}>Next question</button><button id="test-clear" class="text-button" type="button">Clear answer</button></div></form></section>
       <aside class="lesson-block test-navigation" aria-label="Test question navigation"><h2>Your test map</h2><p id="test-count" role="status">${answeredCount()} of ${exam.items.length} answered</p><p class="test-map-key">A tick means answered, not marked correct. Highlighted = current question.</p><nav class="question-map" aria-label="Choose a test question">${exam.items.map((q, i) => `<button type="button" data-index="${i}" aria-label="Question ${i + 1}, ${exam.answers[i] === null ? "unanswered" : "answered"}"${i === exam.index ? ' aria-current="step"' : ""} class="question-jump${exam.answers[i] !== null ? " answered" : ""}">${i + 1}${exam.answers[i] !== null ? '<span aria-hidden="true"> &#10003;</span>' : ""}</button>`).join("")}</nav><button class="cta" type="button" id="test-submit">Review &amp; submit</button><p class="test-map-key">Leaving keeps an active test for this visit. Any timer continues. Reloading or closing abandons it; completed results save to Progress.</p></aside></div>`;
     document.getElementById("test-form").addEventListener("submit", event => event.preventDefault());
@@ -983,7 +1341,7 @@
       <section class="test-review" aria-labelledby="test-review-heading"><h2 id="test-review-heading">Your answer review</h2><p>Every question, your choice and the reason behind the correct answer.</p>${exam.items.map((q, i) => {
         const chosen = exam.answers[i];
         const status = chosen === null ? "Unanswered" : progress.isCorrect(q, chosen) ? "Correct" : "Incorrect";
-        return `<article class="lesson-block review-item"><p class="eyebrow">QUESTION ${i + 1} &middot; ${label(q.topic.subject)} &middot; ${status.toUpperCase()}</p>${q.scenario ? `<details open class="scenario-context"><summary>${esc(q.scenario.title)} &middot; ${esc(q.scenario.type)}</summary><p>${esc(q.scenario.prompt)}</p></details>` : ""}<h3>${esc(q.q)}</h3>${q.passage ? `<details><summary>Re-read the original passage</summary><div class="passage">${esc(q.passage)}</div></details>` : ""}<p class="review-choice">Your answer: <strong>${esc(answerText(q, chosen))}</strong></p><div class="feedback${status === "Correct" ? "" : " incorrect"}"><p>Correct answer: <strong>${esc(correctAnswerText(q))}</strong></p><p>${esc(q.why)}</p></div><a class="text-button" href="#topic/${q.topic.id}">Revisit ${esc(q.topic.title)}</a></article>`;
+        return `<article class="lesson-block review-item"><p class="eyebrow">QUESTION ${i + 1} &middot; ${label(q.topic.subject)} &middot; ${status.toUpperCase()} &middot; ${esc(q.id)}</p>${q.scenario ? `<details open class="scenario-context"><summary>${esc(q.scenario.title)} &middot; ${esc(q.scenario.type)}</summary><p>${esc(q.scenario.prompt)}</p></details>` : ""}<h3>${esc(q.q)}</h3>${passageMarkup(q, "Re-read the original passage")}${evidenceMarkup(q)}${visualMarkup(q)}<p class="review-choice">Your answer: <strong>${esc(answerText(q, chosen))}</strong></p><div class="feedback${status === "Correct" ? "" : " incorrect"}"><p>Correct answer: <strong>${esc(correctAnswerText(q))}</strong></p><p>${esc(q.why)}</p></div><a class="text-button" href="#topic/${q.topic.id}">Revisit ${esc(q.topic.title)}</a> <a class="text-button" href="#catalogue" data-catalogue-question="${esc(q.id)}">Find this ID in the catalogue</a></article>`;
       }).join("")}</section>`;
     document.getElementById("test-retry").addEventListener("click", () => startTest(exam.mode, exam.items, exam.seconds, exam.kind));
     document.getElementById("test-revise").addEventListener("click", () => startRevision(exam.items.filter((q, i) => !progress.isCorrect(q, exam.answers[i]))));
@@ -1024,21 +1382,31 @@
     }
     const item = quiz.items[quiz.index];
     panel.innerHTML = `<div class="quiz-meta"><span>Question ${quiz.index + 1} of ${quiz.items.length}</span><span>${label(item.topic.subject)} &middot; ${esc(item.topic.title)}</span></div><h2>Check your understanding</h2>
-      ${item.scenario ? `<details open class="scenario-context"><summary>${esc(item.scenario.title)} &middot; ${esc(item.scenario.type)}</summary><p>${esc(item.scenario.prompt)}</p></details>` : !quiz.topicId && item.topic.passage ? `<details open><summary>Passage for this question</summary><div class="passage">${esc(item.topic.passage)}</div></details>` : ""}
+      ${item.scenario ? `<details open class="scenario-context"><summary>${esc(item.scenario.title)} &middot; ${esc(item.scenario.type)}</summary><p>${esc(item.scenario.prompt)}</p></details>` : !quiz.topicId && !item.passage && !item.passageSegments && item.topic.passage ? `<details open><summary>Passage for this question</summary><div class="passage">${esc(item.topic.passage)}</div></details>` : ""}
+      ${quiz.topicId ? "" : passageMarkup(item)}
+      ${evidenceMarkup(item)}
+      ${visualMarkup(item)}
       <form id="answer-form">${answerChoices(item)}<div class="quiz-controls"><button class="cta" id="check-answer" type="submit">Check answer</button><span class="quiz-message" id="quiz-message" role="status"></span></div></form><div id="answer-feedback" aria-live="polite"></div>`;
     document.getElementById("answer-form").addEventListener("submit", event => {
       event.preventDefault();
       if (quiz.checked) return;
-      const selected = panel.querySelector('input[name="answer"]:checked');
-      if (!selected) { document.getElementById("quiz-message").textContent = "Choose an answer first."; return; }
+      let response;
+      if (item.format === "numeric-entry") {
+        response = panel.querySelector('input[name="answer"]').value.trim();
+        if (!/^\d{1,8}$/.test(response)) { document.getElementById("quiz-message").textContent = "Enter digits only, up to 8 digits."; return; }
+      } else {
+        const selected = [...panel.querySelectorAll('input[name="answer"]:checked')].map(input => Number(input.value));
+        if (!selected.length) { document.getElementById("quiz-message").textContent = "Choose an answer first."; return; }
+        response = Array.isArray(item.answer) ? selected : selected[0];
+      }
       quiz.checked = true;
-      quiz.answers[quiz.index] = Number(selected.value);
-      const correct = Number(selected.value) === item.answer;
+      quiz.answers[quiz.index] = response;
+      const correct = progress.isCorrect(item, response);
       if (correct) quiz.correct++;
       panel.querySelectorAll('input[name="answer"]').forEach(input => { input.disabled = true; });
       document.getElementById("check-answer").disabled = true;
       document.getElementById("quiz-message").textContent = "";
-      document.getElementById("answer-feedback").innerHTML = `<div class="feedback ${correct ? "" : "incorrect"}"><strong>${correct ? "That's right." : "Not quite - let's work it through."}</strong><p>Answer: <strong>${esc(item.options[item.answer])}</strong></p><p>${esc(item.why)}</p></div><div class="quiz-controls"><button class="cta" id="next-question" type="button">${quiz.index + 1 === quiz.items.length ? "See your result" : "Next question"} <span aria-hidden="true">&#8594;</span></button>${!quiz.topicId ? `<a href="#topic/${item.topic.id}" class="text-button">Review this lesson (leaves set)</a>` : ""}</div>`;
+      document.getElementById("answer-feedback").innerHTML = `<div class="feedback ${correct ? "" : "incorrect"}"><strong>${correct ? "That's right." : "Not quite - let's work it through."}</strong><p>Answer: <strong>${esc(correctAnswerText(item))}</strong></p><p>${esc(item.why)}</p></div><div class="quiz-controls"><button class="cta" id="next-question" type="button">${quiz.index + 1 === quiz.items.length ? "See your result" : "Next question"} <span aria-hidden="true">&#8594;</span></button>${!quiz.topicId ? `<a href="#topic/${item.topic.id}" class="text-button">Review this lesson (leaves set)</a>` : ""}</div>`;
       document.getElementById("next-question").addEventListener("click", () => { quiz.index++; quiz.checked = false; renderQuiz(); focusQuiz(); });
       document.getElementById("next-question").focus({ preventScroll: true });
     });
@@ -1050,10 +1418,19 @@
     let sectionAnchor = "";
     quiz = null;
     if (path === "home") home();
+    else if (path === "resume-written") {
+      if (!writtenMock) restoreWrittenMock();
+      page = state.writtenDraft?.scope === "sutton" ? "sutton" : "exams";
+      if (!writtenMock) home();
+      else if (writtenMock.submitted) renderWrittenReview();
+      else renderWrittenMock();
+    }
     else if (path === "maths" || path === "english") subjectPage(path);
     else if (path === "practice") practicePage();
+    else if (path === "catalogue") cataloguePage();
     else if (path === "tests") testsPage();
     else if (path === "flashcards") flashcardsPage();
+    else if (path === "vocabulary") vocabularyPage();
     else if (path === "scenarios") scenarioPage();
     else if (path === "exams") {
       if (exam) testsPage();
@@ -1061,7 +1438,11 @@
       else examGuidePage();
     }
     else if (path === "tips") tipsPage();
-    else if (path === "sutton") suttonPage();
+    else if (path === "sutton") {
+      if (exam) testsPage();
+      else if (writtenMock) writtenMock.submitted ? renderWrittenReview() : renderWrittenMock();
+      else suttonPage();
+    }
     else if (["exam-set", "exam-nwssee", "exam-tiffin-one", "exam-tiffin-two", "exam-sources"].includes(path)) {
       sectionAnchor = path;
       page = "exams";
@@ -1118,6 +1499,35 @@
     document.getElementById("reset-confirm").hidden = true;
     route(false);
   });
+  main.addEventListener("click", event => {
+    const vocabularyLink = event.target.closest("[data-vocabulary-entry]");
+    if (vocabularyLink) vocabularySearch = vocabulary.entries.find(entry => entry.id === vocabularyLink.dataset.vocabularyEntry)?.word || "";
+    const spellingLink = event.target.closest("[data-spelling-entry]");
+    if (spellingLink) spellingTargetId = spellingLink.dataset.spellingEntry;
+    const catalogueLink = event.target.closest("[data-catalogue-question]");
+    if (catalogueLink) catalogueFilters.query = catalogueLink.dataset.catalogueQuestion;
+    const button = event.target.closest("[data-highlight-evidence]");
+    if (!button) return;
+    const id = button.dataset.highlightEvidence;
+    const segmentTarget = button.matches("[data-evidence-target]");
+    const scope = segmentTarget ? button.closest(".passage-segments") :
+      button.closest("#written-mock-form") || button.closest(".sutton-mock-item, .review-item, .practice-panel, .reading-card, .catalogue-card");
+    if (!scope) return;
+    const targets = segmentTarget ? [button] : [...scope.querySelectorAll("[data-evidence-target]")].filter(target => target.dataset.evidenceTarget === id);
+    const target = targets[0];
+    if (!target) return;
+    const highlighted = target.getAttribute("aria-pressed") !== "true";
+    targets.forEach(current => {
+      current.setAttribute("aria-pressed", String(highlighted));
+      current.classList.toggle("evidence-highlighted", highlighted);
+    });
+    scope.querySelectorAll("[data-highlight-evidence]").forEach(control => {
+      if (!control.matches("[data-evidence-target]") && control.dataset.highlightEvidence === id) control.setAttribute("aria-pressed", String(highlighted));
+    });
+    const details = target.closest("details");
+    if (details) details.open = true;
+    target.scrollIntoView({ block: "center", behavior: "auto" });
+  });
   document.querySelector(".skip-link").addEventListener("click", event => {
     event.preventDefault();
     main.focus();
@@ -1125,6 +1535,14 @@
   });
   window.addEventListener("hashchange", () => route(false));
   document.addEventListener("visibilitychange", tickTimer);
+  if (writtenMock && !writtenMock.submitted && writtenMock.seconds) {
+    if (Date.now() >= writtenMock.deadline) {
+      writtenMock.expired = true;
+      writtenMock.submitted = true;
+      writtenMock.confirming = false;
+      persistWrittenMock();
+    } else timer = setInterval(tickTimer, 250);
+  }
   updateProgress();
   route(true);
 })();

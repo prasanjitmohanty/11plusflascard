@@ -99,21 +99,32 @@ async function run() {
     await page.evaluate(() => { location.hash = "exams"; });
     await page.locator("#nwssee-timing").selectOption("0");
     await page.locator('.start-school-written[data-scope="nwssee"][data-subject="maths"][data-paper="A"]').click();
-    assert.equal(await page.locator(".sutton-mock-item").count(), 15);
+    assert.equal(await page.locator(".sutton-mock-item").count(), 30);
     await page.locator("#written-response-0").fill("I would show the calculation and include the unit.");
+    await page.reload();
+    assert.equal(await page.locator("#written-response-0").inputValue(), "I would show the calculation and include the unit.", "Untimed written drafts survive a reload");
     await page.locator("#written-mock-form button[type=submit]").click();
+    await page.reload();
+    assert.equal(await page.locator("#written-confirm-submit").count(), 1, "The confirmation state survives a reload");
     await page.locator("#written-return").click();
     assert.equal(await page.locator("#written-response-0").inputValue(), "I would show the calculation and include the unit.");
     await page.locator("#written-response-0").fill("Edited response: show the calculation and include the unit.");
     await page.locator("#written-mock-form button[type=submit]").click();
     await page.locator("#written-confirm-submit").click();
     assert.match(await page.locator(".sutton-mock-item").first().textContent(), /Edited response.*Model answer and mark scheme/s);
+    await page.locator('[data-self-mark-index="0"]').selectOption("2");
+    await page.reload();
+    assert.equal(await page.locator('[data-self-mark-index="0"]').inputValue(), "2", "Self-awarded marks survive a reload without affecting automatic accuracy");
     await page.locator(".sutton-reviewed").first().click();
     await page.locator("#sutton-leave-review").click();
     assert.match(await page.locator("#main h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
+    await page.evaluate(() => { location.hash = "home"; });
+    await page.locator('a[href="#resume-written"]').click();
+    assert.equal(await page.locator('[data-self-mark-index="0"]').inputValue(), "2", "A completed mock remains available with its self-assessment after leaving the review");
+    await page.locator("#sutton-leave-review").click();
 
     await page.locator('.start-school-written[data-scope="nwssee"][data-subject="english"][data-paper="A"]').click();
-    assert.equal(await page.locator(".sutton-mock-item").count(), 8);
+    assert.equal(await page.locator(".sutton-mock-item").count(), 16);
     assert.equal(await page.locator(".sutton-mock-item textarea[placeholder*='draft']").count(), 0, "NWSSEE practice does not add a creative-writing task");
     await page.locator("#written-mock-form button[type=submit]").click();
     await page.locator("#written-confirm-submit").click();
@@ -122,9 +133,11 @@ async function run() {
 
     await page.locator("#tiffin-stage-two-timing").selectOption("2700");
     await page.locator('.start-school-written[data-scope="tiffin-stage-two"][data-subject="maths"][data-paper="A"]').click();
-    assert.equal(await page.locator(".sutton-mock-item").count(), 15);
+    assert.equal(await page.locator(".sutton-mock-item").count(), 30);
     assert.match(await page.locator("#main").textContent(), /working is not marked/i);
     await page.locator("#written-response-0").fill("Timed initial response.");
+    await page.reload();
+    assert.equal(await page.locator("#written-response-0").inputValue(), "Timed initial response.", "Timed mock drafts survive reloads with the original deadline");
     await page.locator("#written-mock-form button[type=submit]").click();
     await page.locator("#written-return").click();
     assert.equal(await page.locator("#written-response-0").inputValue(), "Timed initial response.");
@@ -135,19 +148,19 @@ async function run() {
     await page.locator("#sutton-leave-review").click();
 
     await page.locator("#tiffin-stage-two-timing").selectOption("2700");
-    const timedStart = await page.evaluate(() => Date.now());
     await page.locator('.start-school-written[data-scope="tiffin-stage-two"][data-subject="maths"][data-paper="B"]').click();
     await page.locator("#written-response-0").fill("Response at the time limit boundary.");
+    const writtenDeadline = await page.evaluate(() => JSON.parse(localStorage.getItem("brightlane-progress-v1")).writtenDraft.deadline);
     await page.locator("#written-mock-form button[type=submit]").click();
-    await page.clock.setFixedTime(new Date(timedStart + 2700000));
+    await page.clock.setFixedTime(new Date(writtenDeadline));
     await page.locator("#written-return").click();
     assert.match(await page.locator("#main").textContent(), /MOCK COMPLETE · TIME EXPIRED/);
     assert.equal(await page.locator("#written-response-0").count(), 0, "Expired draft locks into self-review at the deadline");
     await page.locator("#sutton-leave-review").click();
 
     await page.locator('.start-school-written[data-scope="tiffin-stage-two"][data-subject="english"][data-paper="A"]').click();
-    assert.equal(await page.locator(".sutton-mock-item").count(), 9);
-    assert.equal(await page.locator(".sutton-mock-item textarea").last().getAttribute("placeholder"), "Write your response. Your draft stays on this page only.");
+    assert.equal(await page.locator(".sutton-mock-item").count(), 17);
+    assert.equal(await page.locator(".sutton-mock-item textarea").last().getAttribute("placeholder"), "Write your response. Your draft is saved on this device.");
     await page.locator(".sutton-mock-item textarea").last().fill("A quiet beginning, a surprising discovery, then a thoughtful ending.");
     await page.locator("#written-mock-form button[type=submit]").click();
     await page.locator("#written-confirm-submit").click();

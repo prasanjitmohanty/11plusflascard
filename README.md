@@ -15,24 +15,35 @@ to any scenario. This site is not a complete national archive of 11+ papers
 and no licensed historic papers were supplied to reproduce. Use the scenarios
 as new practice, not as evidence of what appeared in a particular past exam.
 
-A standalone, responsive Maths and English study website. It has **30 lessons,
-30 worked examples and 90 lesson-practice questions**, plus **60 separate test
-questions** and **12 longer-comprehension questions**. **32 original scenarios**
-(16 per subject), with 64 explained subquestions, bring that foundation bank to
-**226 unique questions**. The school-format banks add 65 SET Maths and 68 SET
-English questions, 30 written Stage 2 Maths problems, 16 Stage 2 comprehension
-questions, 24 Tiffin-style digit-entry items and 20 unfamiliar-format Maths
-items: **449 unique question tasks across the site** (excluding eight writing
-prompts and reused worksheet items). The saved practice/progress registry
-contains **403** questions; some lesson and print-material items are presented
-outside that registry. There are **154 flashcards**: 60 general topic cards and
-94 school/exam-format cards. The Study materials library adds 30 topic revision sheets,
-30 concise subject reference cards, three original longer passages, six writing
-prompts with planning scaffolds and self-checks, and printable three-question
-worksheets for all 30 topics (the worksheet questions reuse the original lesson
-bank). A local
-evidence dashboard, saved results, targeted revision, optional timer, user-set
-study planner and validated progress backups complete the toolkit. All passages
+A standalone, responsive Maths and English study website with **30 topic lessons**
+(18 Maths and 12 English) and **773 registered objective questions** (371 Maths,
+402 English). It also includes self-assessed written work: 30 original Maths
+strategy problems, 30 Stage 2 Maths problems, 32 passage-response tasks (16 from
+the four new English passages), and original writing prompts. These are not
+automatically graded. The newly integrated second-wave Maths add-ons comprise
+170 tasks: 100 reviewed selected-response questions, 40 accessible visual
+questions and 30 written strategy problems, supported by six worked strategy
+lessons. No 200-task Maths expansion is claimed.
+
+English includes 200 graded vocabulary exercises (100 cloze, 50 synonym and 50
+antonym questions), 104 spelling exercises representing all 100 printed
+statutory Year 5/6 spelling-list entries and their listed alternative forms,
+four original passages with 101 evidence segments and 32 questions (16
+select-one and 16 written), 14 comprehension-type exercises, and 30 Stage 2
+writing prompts (eight existing plus 22 new). The writing workshop also has six
+additional topic prompts, six annotated paragraph pairs, six language banks and
+seven dialogue guides. The spelling source and Open Government Licence
+attribution are shown in the site.
+
+The site also has 32 original scenarios with 64 explained subquestions, 250
+flashcards, seven longer reading passages in total, printable worksheets for
+all 30 topics, topic revision sheets and reference notes. These counts describe
+different features and some question banks are included in the 773 objective
+total; they should not be added together as a single unique-task count.
+A progress dashboard, saved results, targeted revision, spaced review,
+optional timers, a study planner, writing drafts and validated progress backups
+complete the toolkit. Coverage is broad UK 11+ Maths and English preparation,
+not a promise to cover every school/provider syllabus. All practice passages
 and questions are original. There are no accounts, adverts, runtime
 dependencies, external fonts, analytics or network requests.
 
@@ -40,12 +51,15 @@ dependencies, external fonts, analytics or network requests.
 
 1. Download and extract the complete website ZIP, or copy this repository folder.
 2. Open **index.html** in a modern browser (Chrome, Edge, Firefox or Safari).
-3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`, `flashcards.js`, `study-materials.js`, `scenario-bank.js`, `sutton-bank.js`, `progress.js` and `app.js` together. No installation,
+3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`,
+   `vocabulary-bank.js`, `study-materials.js`, `scenario-bank.js`,
+   `sutton-bank.js`, `maths-bank.js`, `english-lab.js`, `maths-lab.js`,
+   `flashcards.js`, `progress.js` and `app.js` together. No installation,
    server, internet connection or service worker is required.
 
-Lessons, search, topic quizzes, mixed practice, tests, flashcards, scenario
-practice, school-format practice, exam tips and study materials work directly
-using `file://`.
+Lessons, search, the question catalogue, vocabulary/spelling, topic quizzes,
+mixed practice, tests, flashcards, spaced review, scenario and school-format
+practice, exam tips and study materials work directly using `file://`.
 JavaScript must be enabled. On mobile, use a browser that supports opening local
 HTML folders; a file manager's HTML preview may not run scripts. A desktop browser
 is the most reliable direct-file route.
@@ -110,10 +124,11 @@ papers, standardised scores or predictions of admission.
 
 ## Flashcards
 
-Choose **Flashcards** in the navigation or overview. There are 154 original
+Choose **Flashcards** in the navigation or overview. There are 250 original
 recall cards: 60 general topic cards (36 Maths and 24 English, two for each of
-the 30 lessons) and 94 additional cards tagged to SET, NWSSEE Stage 2, Tiffin
-Stage One, Tiffin Stage Two or shared recall. Every card links to a known topic.
+the 30 lessons), 94 school/exam-format cards, 70 vocabulary/spelling cards,
+20 general strategy cards and six Maths-lab strategy cards. Every card links
+to a known topic.
 Filter by exam format, subject or topic. Cards contain substantive answers and
 explanations and use prompts separate from the practice tests.
 
@@ -329,9 +344,12 @@ change the direct-file offline capability.
 ## Development
 
 Edit `topics.js` for lessons and short practice, `test-bank.js` for the separate
-test bank, `flashcards.js` for recall cards, `study-materials.js` for reference
-notes, longer passages and writing prompts, and `scenario-bank.js` for original
-scenario contexts and linked questions. `app.js` controls
+test bank, `maths-bank.js` for the reviewed second-wave Maths set,
+`vocabulary-bank.js` for vocabulary and spelling, `english-lab.js` for passage
+and writing content, and `maths-lab.js` for visual and strategy content.
+`flashcards.js` defines recall cards, `study-materials.js` reference notes and
+original reading/writing content, and `scenario-bank.js` scenario contexts and
+linked questions. `app.js` controls
 navigation, materials, practice, tests and progress; `progress.js` defines the
 strict backup schema and evidence calculations;
 `styles.css` includes responsive,
@@ -344,6 +362,10 @@ Check content structure, answer keys and absence of remote runtime resources:
 ```sh
 node tests/content.test.cjs
 node tests/practice-tests.content.cjs
+node tests/vocabulary-bank.content.cjs
+node tests/english-lab.content.cjs
+node tests/maths-lab.content.cjs
+node tests/maths-wave2.content.cjs
 node tests/flashcards.content.cjs
 node tests/preparation.content.cjs
 node tests/study-materials.content.cjs

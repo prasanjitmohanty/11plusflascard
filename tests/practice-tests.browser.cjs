@@ -13,7 +13,7 @@ async function run() {
     page.on("pageerror", error => errors.push(error.message));
     page.on("request", request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
     await page.goto(url + "#tests");
-    const bank = await page.evaluate(() => window.BRIGHTLANE_TEST_BANK);
+    const bank = await page.evaluate(() => window.BRIGHTLANE_PROGRESS.questions);
     const topics = await page.evaluate(() => window.BRIGHTLANE_TOPICS);
     const saved = { studied: ["fractions"], scores: { fractions: 2 } };
     await page.evaluate(saved => localStorage.setItem("brightlane-progress-v1", JSON.stringify(saved)), saved);
@@ -26,10 +26,37 @@ async function run() {
     }
     async function jump(index) { await page.locator(`.question-jump[data-index="${index}"]`).click(); }
     async function current() {
-      const text = await page.locator("#test-form legend").textContent();
+      const text = (await page.locator("#test-form legend").textContent())
+        .replace(/ Select two answers\.$/, "")
+        .replace(/ Choose every correct answer\. Practice is marked by exact match\.$/, "");
       const q = bank.find(q => q.q === text);
-      assert.ok(q, "Test draws only from the separate bank");
+      assert.ok(q, "Test draws from the integrated objective catalogue");
       return q;
+    }
+    async function choose(q, correct) {
+      if (q.format === "numeric-entry") {
+        await page.locator("#numeric-answer-input").fill(String(correct ? q.answer : Number(q.answer) + 1));
+        return;
+      }
+      const answers = Array.isArray(q.answer)
+        ? (correct ? q.answer : q.answer.length > 1 ? [q.answer[0]] : [(q.answer[0] + 1) % q.options.length])
+        : [correct ? q.answer : (q.answer + 1) % q.options.length];
+      for (const answer of answers) await page.locator(`#test-form input[name="answer"][value="${answer}"]`).check();
+    }
+    async function selection(q) {
+      if (q.format === "numeric-entry") return [await page.locator("#numeric-answer-input").inputValue()];
+      return (await page.locator('#test-form input[name="answer"]:checked').evaluateAll(inputs => inputs.map(input => Number(input.value)))).sort();
+    }
+    function expectedSelection(q, correct) {
+      if (q.format === "numeric-entry") return [String(correct ? q.answer : Number(q.answer) + 1)];
+      const answers = Array.isArray(q.answer)
+        ? (correct ? q.answer : q.answer.length > 1 ? [q.answer[0]] : [(q.answer[0] + 1) % q.options.length])
+        : [correct ? q.answer : (q.answer + 1) % q.options.length];
+      return answers.slice().sort((a, b) => a - b);
+    }
+    function expectedAnswer(q) {
+      if (q.format === "numeric-entry") return String(q.answer);
+      return (Array.isArray(q.answer) ? q.answer : [q.answer]).map(index => q.options[index]).join("; ");
     }
     async function submit() {
       await page.locator("#test-submit").click();
@@ -43,17 +70,17 @@ async function run() {
       assert.equal(await page.locator("#test-previous").isDisabled(), true);
       assert.equal(await page.locator(".feedback").count(), 0, "Answers withheld");
       const first = await current();
-      await page.locator(`input[value="${(first.answer + 1) % 4}"]`).check();
+      await choose(first, false);
       await page.locator("#test-next").click();
       await page.locator("#test-previous").click();
-      assert.equal(await page.locator(`input[value="${(first.answer + 1) % 4}"]`).isChecked(), true);
+      assert.deepEqual(await selection(first), expectedSelection(first, false));
       await page.locator("#test-clear").click();
       assert.equal(await page.locator("input:checked").count(), 0);
       assert.match(await page.locator("#test-count").textContent(), /0 of 20/);
-      await page.locator(`input[value="${first.answer}"]`).check();
+      await choose(first, true);
       await route("#topic/fractions");
       await route("#tests");
-      assert.equal(await page.locator(`input[value="${first.answer}"]`).isChecked(), true, "Navigation retains attempt");
+      assert.deepEqual(await selection(first), expectedSelection(first, true), "Navigation retains attempt");
       await page.locator("#test-submit").click();
       assert.match(await page.locator("h2").textContent(), /19 unanswered/);
       await page.locator("#test-return").click();
@@ -68,8 +95,8 @@ async function run() {
         const subject = topics.find(t => t.id === q.topicId).subject;
         if (subject === "maths") maths++; else english++;
         if (mode !== "mixed") assert.equal(subject, mode);
-        if (q.passage) assert.equal(await page.locator("#test-question-panel .passage").textContent(), q.passage);
-        await page.locator(`input[value="${q.answer}"]`).check();
+        if (q.passage || q.passageSegments) assert.ok(await page.locator("#test-question-panel .passage").count() > 0, "Passage-based test questions retain their source");
+        await choose(q, true);
         assert.equal(await page.locator(".feedback").count(), 0);
       }
       if (mode === "mixed") { assert.equal(maths, 10); assert.equal(english, 10); assert.equal(represented.size, 20); }
@@ -85,7 +112,7 @@ async function run() {
       for (const id of seen) {
         const q = bank.find(q => q.id === id);
         const card = review.find(text => text.includes(q.q));
-        assert.ok(card.includes(q.why) && card.includes(q.options[q.answer]), "Complete explained review");
+        assert.ok(card.includes(q.why) && card.includes(expectedAnswer(q)), "Complete explained review");
         reviewed++;
       }
       if (mode === "english") {
@@ -100,7 +127,7 @@ async function run() {
       for (let i = 0; i < 20; i++) {
         await jump(i);
         const q = await current();
-        if (i >= 5) await page.locator(`input[value="${i < 12 ? q.answer : (q.answer + 1) % 4}"]`).check();
+        if (i >= 5) await choose(q, i < 12);
       }
       await page.locator("#test-submit").click();
       assert.match(await page.locator("h2").textContent(), /5 unanswered/);

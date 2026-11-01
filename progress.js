@@ -4,13 +4,25 @@
   const cards = window.BRIGHTLANE_FLASHCARDS;
   const readings = window.BRIGHTLANE_STUDY_MATERIALS.readings;
   const scenarios = window.BRIGHTLANE_SCENARIOS;
+  const vocabulary = window.BRIGHTLANE_VOCABULARY;
   const sutton = window.BRIGHTLANE_SUTTON_BANK;
   const tiffin = sutton.tiffin;
-  const stageTwoIds = [
-    ...sutton.stageTwo.maths.map(item => item.id),
-    ...sutton.stageTwo.passages.flatMap(passage => passage.questions.map(question => question.id)),
-    ...sutton.stageTwo.writing.map(item => item.id)
+  const englishLab = window.BRIGHTLANE_ENGLISH_LAB || { passages: [], typeQuestions: [], writingPrompts: [] };
+  const mathsLab = window.BRIGHTLANE_MATHS_LAB || { strategyQuestions: [], visualQuestions: [] };
+  const writingPromptIds = [
+    ...window.BRIGHTLANE_STUDY_MATERIALS.writing.map((item, index) => item.id || "study-writing-" + String(index + 1).padStart(3, "0")),
+    ...sutton.stageTwo.writing.map(item => item.id),
+    ...englishLab.writingPrompts.map(item => item.id)
   ];
+  const writtenTaskMeta = [
+    ...sutton.stageTwo.maths.map(item => ({ id: item.id, subject: "maths", maxMarks: item.maxMarks })),
+    ...sutton.stageTwo.passages.flatMap(passage => passage.questions.map(question => ({ id: question.id, subject: "english", maxMarks: question.marks }))),
+    ...sutton.stageTwo.writing.map(item => ({ id: item.id, subject: "english", maxMarks: item.criteria.length })),
+    ...englishLab.passages.flatMap(passage => passage.questions.filter(question => question.format === "written").map(question => ({ id: question.id, subject: "english", maxMarks: question.marks }))),
+    ...mathsLab.strategyQuestions.map(question => ({ id: question.id, subject: "maths", maxMarks: question.maxMarks }))
+  ];
+  const writtenTaskById = new Map(writtenTaskMeta.map(item => [item.id, item]));
+  const stageTwoIds = writtenTaskMeta.map(item => item.id);
   const questions = [
     ...topics.flatMap(t => t.questions.map((q, i) => ({ ...q, id: t.id + "-lesson-" + (i + 1), topicId: t.id, passage: t.passage, topic: t }))),
     ...window.BRIGHTLANE_TEST_BANK.map(q => ({ ...q, topic: topics.find(t => t.id === q.topicId) })),
@@ -22,12 +34,21 @@
       scenario: { id: scenario.id, title: scenario.title, prompt: scenario.prompt, type: scenario.type }
     }))),
     ...Object.values(sutton.stageOne).flatMap(items => items.map(q => ({ ...q, topic: topics.find(t => t.id === q.topicId) }))),
-    ...tiffin.numeric.concat(tiffin.unfamiliar).map(q => ({ ...q, topic: topics.find(t => t.id === q.topicId) }))
+    ...tiffin.numeric.concat(tiffin.unfamiliar).map(q => ({ ...q, topic: topics.find(t => t.id === q.topicId) })),
+    ...window.BRIGHTLANE_MATHS_WAVE_TWO.map(q => ({ ...q, topic: topics.find(t => t.id === q.topicId) })),
+    ...vocabulary.questions.map(q => ({ ...q, exams: ["All exams"], round: "both", topic: topics.find(t => t.id === q.topicId) })),
+    ...englishLab.passages.flatMap(passage => passage.questions.filter(q => q.format === "select-one").map(q => ({
+      ...q, exams: ["General KS2"], round: "Stage 2", passage: passage.segments.map(segment => segment.text).join("\n\n"),
+      passageTitle: passage.title, passageGenre: passage.genre, passageSegments: passage.segments, topic: topics.find(t => t.id === q.topicId)
+    }))),
+    ...englishLab.typeQuestions.map(q => ({ ...q, exams: ["General KS2"], round: "both", topic: topics.find(t => t.id === q.topicId) })),
+    ...mathsLab.visualQuestions.map(q => ({ ...q, exams: ["General KS2"], round: "both", topic: topics.find(t => t.id === q.topicId) }))
   ];
+  const reviewableIds = [...cards.map(card => card.id), ...vocabulary.entries.map(entry => entry.id), ...vocabulary.spellings.map(item => item.id)];
   const byId = new Map(questions.map(q => [q.id, q]));
   const checklist = ["guidance", "registration", "arrangements", "exam-day", "sutton-practice"];
   function empty() {
-    return { version: 2, studied: [], scores: {}, cardRatings: {}, attempts: [], planner: { examDate: "", weeklySessions: 3, completed: [], checks: [] }, suttonReviewed: [] };
+    return { version: 2, studied: [], scores: {}, cardRatings: {}, attempts: [], planner: { examDate: "", weeklySessions: 3, completed: [], checks: [] }, suttonReviewed: [], reviewSchedule: {}, writtenDraft: null, writingDrafts: {} };
   }
   function fail(message) { throw new Error(message); }
   function object(value, keys, name) {
@@ -45,7 +66,7 @@
   }
   function validate(value) {
     const required = ["version", "studied", "scores", "cardRatings", "attempts", "planner"];
-    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => ![...required, "suttonReviewed"].includes(key)) || required.some(key => !Object.hasOwn(value, key))) fail("Invalid progress fields.");
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => ![...required, "suttonReviewed", "reviewSchedule", "writtenDraft", "writingDrafts"].includes(key)) || required.some(key => !Object.hasOwn(value, key))) fail("Invalid progress fields.");
     if (value.version !== 2) fail("Unsupported progress version. Use a Brightlane version 2 backup.");
     const topicIds = topics.map(t => t.id);
     ids(value.studied, topicIds, "studied topics");
@@ -87,9 +108,31 @@
     ids(value.planner.completed, topicIds, "planner topics");
     ids(value.planner.checks, checklist, "planner checklist");
     if (value.suttonReviewed !== undefined) ids(value.suttonReviewed, stageTwoIds, "Sutton Stage 2 self-reviews");
+    const reviewSchedule = value.reviewSchedule === undefined ? {} : value.reviewSchedule;
+    if (!reviewSchedule || typeof reviewSchedule !== "object" || Array.isArray(reviewSchedule)) fail("Invalid spaced-repetition schedule.");
+    for (const [id, schedule] of Object.entries(reviewSchedule)) {
+      if (!reviewableIds.includes(id)) fail("Unknown spaced-repetition item.");
+      object(schedule, ["box", "dueDate"], "review schedule");
+      if (!Number.isInteger(schedule.box) || schedule.box < 0 || schedule.box > 5 || !date(schedule.dueDate)) fail("Invalid spaced-repetition interval.");
+    }
+    const writtenDraft = value.writtenDraft === undefined ? null : value.writtenDraft;
+    if (writtenDraft !== null) {
+      object(writtenDraft, ["subject", "paper", "scope", "seconds", "deadline", "expired", "submitted", "confirming", "itemIds", "answers", "selfMarks"], "written mock");
+      if (!["maths", "english"].includes(writtenDraft.subject) || !["A", "B"].includes(writtenDraft.paper) || !["sutton", "nwssee", "tiffin-stage-two"].includes(writtenDraft.scope)) fail("Invalid written mock settings.");
+      if (!Number.isInteger(writtenDraft.seconds) || writtenDraft.seconds < 0 || writtenDraft.seconds > 7200 || (writtenDraft.seconds === 0 ? writtenDraft.deadline !== null : !Number.isSafeInteger(writtenDraft.deadline) || writtenDraft.deadline < 0)) fail("Invalid written mock timer.");
+      if (typeof writtenDraft.expired !== "boolean" || typeof writtenDraft.submitted !== "boolean" || typeof writtenDraft.confirming !== "boolean" || (writtenDraft.expired && !writtenDraft.submitted) || (writtenDraft.submitted && writtenDraft.confirming)) fail("Invalid written mock status.");
+      if (!Array.isArray(writtenDraft.itemIds) || writtenDraft.itemIds.length < 1 || writtenDraft.itemIds.length > 60 || new Set(writtenDraft.itemIds).size !== writtenDraft.itemIds.length || writtenDraft.itemIds.some(id => !writtenTaskById.has(id) || writtenTaskById.get(id).subject !== writtenDraft.subject)) fail("Invalid written mock questions.");
+      if (!Array.isArray(writtenDraft.answers) || writtenDraft.answers.length !== writtenDraft.itemIds.length || writtenDraft.answers.some(answer => typeof answer !== "string" || answer.length > 10000) || writtenDraft.answers.reduce((sum, answer) => sum + answer.length, 0) > 100000) fail("Invalid written mock responses.");
+      if (!Array.isArray(writtenDraft.selfMarks) || writtenDraft.selfMarks.length !== writtenDraft.itemIds.length || writtenDraft.selfMarks.some((mark, index) => mark !== null && (!Number.isInteger(mark) || mark < 0 || mark > writtenTaskById.get(writtenDraft.itemIds[index]).maxMarks))) fail("Invalid written mock self-assessment.");
+    }
+    const writingDrafts = value.writingDrafts === undefined ? {} : value.writingDrafts;
+    if (!writingDrafts || typeof writingDrafts !== "object" || Array.isArray(writingDrafts) || Object.keys(writingDrafts).some(id => !writingPromptIds.includes(id)) || Object.values(writingDrafts).some(draft => typeof draft !== "string" || draft.length > 10000) || Object.values(writingDrafts).reduce((sum, draft) => sum + draft.length, 0) > 100000) fail("Invalid writing drafts.");
     // Copy only validated data: imports cannot retain prototypes or extra fields.
     const copy = JSON.parse(JSON.stringify(value));
     if (!copy.suttonReviewed) copy.suttonReviewed = [];
+    if (!copy.reviewSchedule) copy.reviewSchedule = {};
+    if (!Object.hasOwn(copy, "writtenDraft")) copy.writtenDraft = null;
+    if (!copy.writingDrafts) copy.writingDrafts = {};
     return copy;
   }
   function migrate(value) {
@@ -128,5 +171,5 @@
     }
     return !Array.isArray(answer) && answer === question.answer;
   }
-  window.BRIGHTLANE_PROGRESS = { empty, validate, migrate, date, summary, evidence, missed, questions, byId, checklist, isCorrect, stageTwoIds };
+  window.BRIGHTLANE_PROGRESS = { empty, validate, migrate, date, summary, evidence, missed, isCorrect, questions, byId, checklist, stageTwoIds, reviewableIds, writtenTaskById, writingPromptIds };
 })();

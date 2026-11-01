@@ -4,12 +4,12 @@ const vm = require("node:vm");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const sandbox = { window: {}, Date, Map, Set, Object };
-for (const file of ["topics.js", "test-bank.js", "flashcards.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "progress.js"]) vm.runInNewContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox);
+for (const file of ["topics.js", "test-bank.js", "vocabulary-bank.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "maths-bank.js", "english-lab.js", "maths-lab.js", "flashcards.js", "progress.js"]) vm.runInNewContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox);
 const p = sandbox.window.BRIGHTLANE_PROGRESS;
 const clone = value => JSON.parse(JSON.stringify(value));
-assert.equal(p.questions.length, 403);
-assert.equal(p.byId.size, 403);
-assert.equal(new Set(p.questions.map(question => question.id)).size, 403, "All question identifiers are unique");
+assert.equal(p.questions.length, 773);
+assert.equal(p.byId.size, 773);
+assert.equal(new Set(p.questions.map(question => question.id)).size, 773, "All question identifiers are unique");
 const normalizedStems = p.questions.map(question => question.q.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB"));
 assert.equal(new Set(normalizedStems).size, normalizedStems.length, "No repeated question stems across the complete bank");
 assert.deepEqual(clone(p.validate(p.empty())), clone(p.empty()));
@@ -17,6 +17,34 @@ assert.deepEqual(clone(p.migrate({ studied: ["fractions"], scores: { fractions: 
 for (const date of ["2027-02-29", "2027-02-30", "2027-04-31", "2027-13-01", "2026-12-01", "2027-1-01", "garbage"]) assert.equal(p.date(date, 2027), false, date);
 for (const date of ["2027-01-01", "2027-02-28", "2027-12-31"]) assert.equal(p.date(date, 2027), true, date);
 const q = p.byId.get("fractions-test-1");
+const writtenTask = Array.from(p.writtenTaskById.values()).find(item => item.subject === "maths");
+const draftState = p.empty();
+draftState.writtenDraft = {
+  subject: "maths", paper: "A", scope: "sutton", seconds: 0, deadline: null,
+  expired: false, submitted: false, confirming: true,
+  itemIds: [writtenTask.id], answers: ["My saved calculation"], selfMarks: [null]
+};
+const promptId = p.writingPromptIds[0];
+draftState.writingDrafts[promptId] = "A persistent original writing draft.";
+assert.equal(p.validate(draftState).writtenDraft.answers[0], "My saved calculation", "Written mock drafts validate and survive backup round trips");
+assert.equal(p.validate(draftState).writingDrafts[promptId], "A persistent original writing draft.", "Writing studio drafts are included in validated backups");
+const englishLabQuestion = sandbox.window.BRIGHTLANE_ENGLISH_LAB.passages.flatMap(passage => passage.questions).find(question => question.format === "written");
+assert.ok(p.writtenTaskById.has(englishLabQuestion.id), "English-lab written questions are registered by format, not question-type code");
+const englishDraft = {
+  subject: "english", paper: "A", scope: "tiffin-stage-two", seconds: 0, deadline: null,
+  expired: false, submitted: true, confirming: false, itemIds: [englishLabQuestion.id],
+  answers: ["A partial written response."], selfMarks: [1]
+};
+assert.deepEqual(clone(p.validate({ ...p.empty(), writtenDraft: englishDraft }).writtenDraft), clone(englishDraft), "English-lab mock answers and self-marks remain valid for restore and import");
+const preDraftState = p.empty();
+delete preDraftState.writtenDraft;
+assert.equal(p.migrate(preDraftState).writtenDraft, null, "Earlier version-2 backups migrate without losing progress");
+const badDraft = clone(draftState);
+badDraft.writtenDraft.selfMarks[0] = writtenTask.maxMarks + 1;
+assert.throws(() => p.validate(badDraft), /self-assessment/);
+const badWritingDraft = clone(draftState);
+badWritingDraft.writingDrafts.unknown = "not a known prompt";
+assert.throws(() => p.validate(badWritingDraft), /writing drafts/);
 const attempt = { id: "result-1", at: "2027-01-01T10:00:00.000Z", mode: "maths", kind: "test", seconds: 900, expired: true, questionIds: [q.id], answers: [null] };
 const state = p.empty();
 state.attempts = [attempt]; state.cardRatings["card-1"] = "again";

@@ -165,5 +165,53 @@
   const examSpecificCards = examCards.map(([topicId, exam, front, back], index) => ({
     id: "exam-card-" + String(index + 1).padStart(3, "0"), topicId, exam, front, back
   }));
-  window.BRIGHTLANE_FLASHCARDS = [...lessonCards, ...examSpecificCards];
+  const vocabularyCards = window.BRIGHTLANE_VOCABULARY.entries.slice(0, 50).map((entry, index) => ({
+    id: "vocabulary-card-" + String(index + 1).padStart(3, "0"), topicId: "context", exam: "All exams",
+    sourceId: entry.id,
+    front: `What does “${entry.word}” mean? Give a synonym and an antonym.`,
+    back: `${entry.definition} Synonym: ${entry.synonym}. Antonym: ${entry.antonym}. Example: ${entry.example}`
+  }));
+  const spellingCards = window.BRIGHTLANE_VOCABULARY.spellings.slice(0, 20).map((item, index) => ({
+    id: "spelling-card-" + String(index + 1).padStart(3, "0"), topicId: "spelling", exam: "All exams",
+    sourceId: item.id,
+    front: `Spell the word: ${item.sentence} (${item.clue})`,
+    back: `${item.word}. Clue: ${item.clue}`
+  }));
+  const strategyCards = [
+    ["SET", "How should you mark an A–E answer on the SET answer sheet?", "Use the official answer sheet as instructed: make one firm line through the chosen letter or lozenge. Practise neatly, keep your place and check the question number before moving on."],
+    ["SET", "What does “select two” mean in SET practice?", "Choose exactly two options. The published SET guidance says both correct answers are required for these items; this app uses exact-match practice scoring. Do not select an extra option."],
+    ["SET", "How can you pace a multiple-choice paper?", "Work steadily, skip a question that is taking too long and return if time permits. Reserve a short final check for unanswered items and transfer accuracy."],
+    ["SET", "How can elimination help with multiple-choice answers?", "Cross out options that contradict the question or a reliable estimate. Re-read the remaining choices and test each one; elimination is a tool, not proof by itself."],
+    ["SET", "What does the published SET guidance say about negative marking?", "It says there is no negative marking. Do not assume this rule applies to another school's paper; check the current school's own instructions."],
+    ["SET", "How can you estimate a calculation before choosing an option?", "Round values to convenient numbers, calculate approximately, then reject options far from the estimate. Check the exact calculation after choosing."],
+    ["NWSSEE Stage 2", "How should you present a written Maths answer?", "Write a clear final answer with its unit and re-read what the question asks. Working can help you learn, but follow the current paper's instructions about how answers are marked."],
+    ["Tiffin Stage One", "How do you enter a four-digit digital time in the digit grid?", "Use 24-hour time, four digits, and no colon or spaces. For example, 07:05 is entered as 0705. Check every digit and leading zero."],
+    ["Tiffin Stage Two", "What is the final-answer check for a multi-step Maths problem?", "Return to the exact question, check the operation order, recalculate the arithmetic and confirm the requested quantity and unit. Published Tiffin guidance says working is not marked."],
+    ["All exams", "How can units prevent a word-problem error?", "Underline the unit asked for. Convert quantities to a common unit before operating, then include the requested unit in the final answer."],
+    ["All exams", "Why read a Maths question twice?", "The first reading gives the situation; the second identifies the target, important quantities and restrictions. Circle words such as altogether, remaining, each, difference and at least."],
+    ["All exams", "How can a bar model help with fractions and ratio?", "Draw equal parts to represent the total or ratio. Label known parts, then divide or scale the model to find the unknown amount."],
+    ["All exams", "When is working backwards useful?", "Use it when a question describes a sequence of operations and gives the result. Reverse the operations in reverse order, using the inverse of each step."],
+    ["All exams", "What is a common area-and-perimeter trap?", "Area measures space inside in square units; perimeter measures boundary length in ordinary units. For a rectangle, area is length × width, perimeter is 2 × (length + width)."],
+    ["All exams", "How do you find a mean with a missing value?", "Multiply the mean by the number of values to find the required total. Subtract the known values' total; the remainder is the missing value."],
+    ["English", "How do you find evidence for a comprehension answer?", "Make a point, select a short exact quotation or precise detail, then explain how it supports the point. Keep the evidence relevant to the question."],
+    ["English", "How is inference different from retrieval?", "Retrieval locates what the text states. Inference draws a reasonable conclusion from clues. Support an inference with evidence and avoid claiming more than the passage shows."],
+    ["English", "What is a useful vocabulary-in-context routine?", "Read the whole sentence and nearby clues, notice contrast or examples, consider word parts, then substitute a possible meaning and check that it fits."],
+    ["English", "How can you plan creative writing when time is limited?", "Spend a short part of the time choosing a clear situation, viewpoint and sequence. Plan a beginning, change or development, and ending before drafting."],
+    ["English", "What should you proofread first in a timed piece?", "Check that the writing answers the task and is organised. Then check sentence boundaries, tense consistency, punctuation, spelling and missing words."]
+  ].map(([exam, front, back], index) => ({
+    id: "strategy-card-" + String(index + 1).padStart(3, "0"), topicId: index < 15 ? "word-problems" : index < 17 ? "comprehension" : index === 17 ? "context" : "writing", exam, front, back
+  }));
+  const mathsLab = window.BRIGHTLANE_MATHS_LAB || { strategies: [], strategyQuestions: [] };
+  const mathsStrategyCards = mathsLab.strategies.map(strategy => {
+    const example = mathsLab.strategyQuestions.find(question => question.strategyId === strategy.id);
+    return {
+      id: "maths-strategy-card-" + strategy.id,
+      topicId: example ? example.topicId : "word-problems",
+      exam: "All exams",
+      sourceId: example ? example.id : "",
+      front: `When could ${strategy.title.toLocaleLowerCase("en-GB")} help with a Maths problem?`,
+      back: `${strategy.explanation} Example: ${strategy.workedExample.q} ${strategy.workedExample.finalAnswer}`
+    };
+  });
+  window.BRIGHTLANE_FLASHCARDS = [...lessonCards, ...examSpecificCards, ...vocabularyCards, ...spellingCards, ...strategyCards, ...mathsStrategyCards];
 })();
