@@ -17,6 +17,7 @@ async function run() {
     page.on("request", request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
     await page.goto(url);
     const topics = await page.evaluate(() => window.BRIGHTLANE_TOPICS);
+    const questionRegistry = await page.evaluate(() => window.BRIGHTLANE_PROGRESS.questions);
     assert.equal(topics.length, 30);
     await page.getByRole("link", { name: "Skip to content" }).focus();
     await page.keyboard.press("Enter");
@@ -42,7 +43,7 @@ async function run() {
     for (const t of topics) {
       await route("#topic/" + t.id);
       await page.getByRole("heading", { name: t.title, exact: true }).waitFor();
-      assert.equal(await page.locator(".lesson-block li").count(), 3);
+      assert.equal(await page.locator(".lesson-layout article > .lesson-block").first().locator("ul > li").count(), t.learn.length);
       if (t.passage) assert.equal(await page.locator(".passage").textContent(), t.passage);
       await page.locator("#check-answer").click();
       assert.match(await page.locator("#quiz-message").textContent(), /Choose an answer/);
@@ -57,7 +58,7 @@ async function run() {
         checked++;
       }
       assert.match(await page.locator(".quiz-complete h2").textContent(), /3 of 3/);
-      await page.locator("#retry-quiz").click();
+      await page.locator(".retry-quiz").click();
       for (const q of t.questions) {
         await page.locator(`input[value="${(q.answer + 1) % 4}"]`).check();
         await page.locator("#check-answer").click();
@@ -83,14 +84,20 @@ async function run() {
         await page.locator("#start-mixed").click();
         const seen = new Set();
         for (let i = 0; i < Number(size); i++) {
-          const question = await page.locator(".question").textContent();
+          const question = (await page.locator(".question").textContent())
+            .replace(/ Select two answers\.$/, "")
+            .replace(/ Choose every correct answer\. Practice is marked by exact match\.$/, "");
           assert.ok(!seen.has(question), "No repeats in mixed set");
           seen.add(question);
-          const t = topics.find(t => t.questions.some(q => q.q === question));
+          const q = questionRegistry.find(item => item.q === question);
+          assert.ok(q, "Mixed practice draws from the integrated objective catalogue");
+          const t = topics.find(t => t.id === q.topicId);
           if (subject !== "all") assert.equal(t.subject, subject);
-          if (t.passage) assert.equal(await page.locator("#mixed-quiz .passage").textContent(), t.passage);
-          const q = t.questions.find(q => q.q === question);
-          await page.locator(`input[value="${q.answer}"]`).check();
+          if (q.passage || q.passageSegments) assert.ok(await page.locator("#mixed-quiz .passage").count() > 0, "Passage-based practice keeps its source available");
+          if (q.format === "numeric-entry") await page.locator("#numeric-answer-input").fill(q.answer);
+          else for (const answer of (Array.isArray(q.answer) ? q.answer : [q.answer])) {
+            await page.locator(`#answer-form input[value="${answer}"]`).check();
+          }
           await page.locator("#check-answer").click();
           await page.locator("#next-question").click();
         }

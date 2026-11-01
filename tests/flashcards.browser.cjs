@@ -114,12 +114,16 @@ async function run() {
     const progress = await page.evaluate(() => localStorage.getItem("brightlane-progress-v1"));
     await route("#tests");
     await page.locator('.start-test[data-mode="maths"]').click();
-    await page.locator('input[value="0"]').check();
+    const testInput = page.locator('#test-form input[name="answer"]').first();
+    const numericTestAnswer = await testInput.getAttribute("type") === "text";
+    if (numericTestAnswer) await testInput.fill("0");
+    else await testInput.check();
     await route("#flashcards");
     assert.equal((await current()).id, last);
     assert.equal(await page.locator("#card-answer").isVisible(), true, "Deck and revealed state retained for visit");
     await route("#tests");
-    assert.equal(await page.locator('input[value="0"]').isChecked(), true, "Flashcards preserve test attempt");
+    if (numericTestAnswer) assert.equal(await testInput.inputValue(), "0", "Flashcards preserve numeric test attempt");
+    else assert.equal(await testInput.isChecked(), true, "Flashcards preserve test attempt");
     await route("#flashcards");
     await page.locator("#card-subject").selectOption("english");
     assert.equal(await page.locator("#card-topic").inputValue(), "all");
@@ -157,15 +161,15 @@ async function run() {
     assert.match(await page.locator("#flashcard-deck").textContent(), /No cards in this deck/);
     await page.evaluate(cards => { window.BRIGHTLANE_FLASHCARDS = cards; }, allCards);
     await page.locator("#cards-show-all").click();
-    assert.match(await page.locator(".card-study-bar").textContent(), /of 154/);
-    for (const [exam, count] of [["SET", 20], ["NWSSEE Stage 2", 18], ["Tiffin Stage One", 16], ["Tiffin Stage Two", 15], ["All exams", 25]]) {
+    assert.match(await page.locator(".card-study-bar").textContent(), /of 250/);
+    for (const [exam, count] of [["SET", 26], ["NWSSEE Stage 2", 19], ["Tiffin Stage One", 17], ["Tiffin Stage Two", 16], ["All exams", 107]]) {
       await page.locator("#card-exam").selectOption(exam);
       assert.match(await page.locator(".card-study-bar").textContent(), new RegExp("of " + count + "\\b"));
       const currentCardText = await page.locator(".recall-card h2").textContent();
       assert.ok(allCards.some(card => card.exam === exam && card.front === currentCardText), exam + " filter selects a matching card");
     }
     assert.deepEqual(errors, []); assert.deepEqual(network, []);
-    console.log("PASS: 60 general cards plus 94 school/exam-format cards (154 total) offline via file://; keyboard reveal/hide; navigation, rating changes, completion, retry-only deck, 30 topic/subject and exam filters, shuffle membership/retained ratings, visit-only state, unchanged lesson/test progress, defensive empty deck and 300 responsive revealed-card checks; zero external requests or page errors.");
+    console.log("PASS: 250 recall cards (60 general, 94 exam-format, 70 vocabulary/spelling, 20 general strategy, six Maths-lab strategy) offline via file://; keyboard reveal/hide; navigation, rating changes, completion, retry-only deck, 30 topic/subject and exam filters, shuffle membership/retained ratings, visit-only state, unchanged lesson/test progress, defensive empty deck and 300 responsive revealed-card checks; zero external requests or page errors.");
   } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

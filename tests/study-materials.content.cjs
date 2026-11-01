@@ -4,19 +4,21 @@ const vm = require("node:vm");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const sandbox = { window: {}, Map, Set, Object };
-for (const file of ["topics.js", "test-bank.js", "flashcards.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "progress.js"]) vm.runInNewContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox);
+for (const file of ["topics.js", "test-bank.js", "vocabulary-bank.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "maths-bank.js", "english-lab.js", "maths-lab.js", "flashcards.js", "progress.js"]) vm.runInNewContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox);
 const topics = sandbox.window.BRIGHTLANE_TOPICS;
 const materials = sandbox.window.BRIGHTLANE_STUDY_MATERIALS;
 const progress = sandbox.window.BRIGHTLANE_PROGRESS;
-assert.equal(progress.questions.length, 403);
-assert.equal(progress.byId.size, 403);
-assert.equal(progress.questions.filter(q => q.topic.subject === "maths").length, 231);
-assert.equal(progress.questions.filter(q => q.topic.subject === "english").length, 172);
-assert.equal(new Set(progress.questions.map(q => q.id)).size, 403, "Stable question IDs are unique");
+assert.equal(progress.questions.length, 773);
+assert.equal(progress.byId.size, 773);
+assert.equal(progress.questions.filter(q => q.topic.subject === "maths").length, 371);
+assert.equal(progress.questions.filter(q => q.topic.subject === "english").length, 402);
+assert.equal(new Set(progress.questions.map(q => q.id)).size, 773, "Stable question IDs are unique");
 const stems = progress.questions.map(q => q.q.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB"));
 assert.equal(new Set(stems).size, stems.length, "No duplicate question stems across the complete bank");
 const existingQuestions = progress.questions.filter(q => !q.id.startsWith("sutton-set-") && q.format !== "numeric-entry" && !q.id.startsWith("tiffin-unfamiliar-"));
-assert.ok(existingQuestions.every(q => q.options.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4 && q.why.length >= 35));
+assert.ok(existingQuestions.every(q => q.options.length >= 4 && (Array.isArray(q.answer)
+  ? q.answer.length === 2 && q.answer.every(answer => Number.isInteger(answer) && answer >= 0 && answer < q.options.length)
+  : Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length) && q.why.length >= 35));
 assert.ok(progress.questions.filter(q => q.id.startsWith("sutton-set-")).every(q => q.options.length === 5 && (Array.isArray(q.answer) ? q.answer.length >= 2 && q.answer.every(answer => Number.isInteger(answer)) : Number.isInteger(q.answer)) && q.why.length >= 30));
 const numericQuestions = progress.questions.filter(q => q.format === "numeric-entry");
 assert.equal(numericQuestions.length, 24);
@@ -60,4 +62,4 @@ for (const prompt of materials.writing) {
 }
 assert.doesNotMatch(fs.readFileSync(path.join(root, "study-materials.js"), "utf8"), /https?:\/\/|fetch\s*\(|XMLHttpRequest|@import/);
 for (const topic of topics) assert.equal(topic.questions.length, 3, topic.id + " worksheet has three linked questions");
-console.log("PASS: 403 registered practice questions have unique stable IDs/stems; all 30 topic references, 3 longer passages/12 checked answers, 6 writing scaffolds/rubrics and 30 reusable worksheet sets verified.");
+console.log("PASS: 773 registered objective questions have unique stable IDs/stems; all 30 topic references, seven reading materials passages, four segmented English-lab passages, 30 route writing prompts, six additional persistent writing prompts and 30 reusable worksheet sets verified.");

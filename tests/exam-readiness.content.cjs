@@ -4,7 +4,7 @@ const vm = require("node:vm");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const window = {};
-for (const file of ["topics.js", "test-bank.js", "flashcards.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "progress.js"]) {
+for (const file of ["topics.js", "test-bank.js", "vocabulary-bank.js", "study-materials.js", "scenario-bank.js", "sutton-bank.js", "maths-bank.js", "english-lab.js", "maths-lab.js", "flashcards.js", "progress.js"]) {
   vm.runInNewContext(fs.readFileSync(path.join(root, file), "utf8"), { window, Date, Map, Set, Object });
 }
 const bank = window.BRIGHTLANE_SUTTON_BANK;
@@ -66,9 +66,9 @@ assert.equal(bank.guidance.wallingtonGirls2028.openEvening, "Tuesday 6 July 2027
 assert.equal(bank.guidance.wallingtonGirls2028.stageTwoDate, null);
 assert.doesNotMatch(bank.guidance.tiffin.priorCycleNote, /dates have passed/i);
 
-assert.equal(progress.questions.length, 403);
-assert.equal(new Set(progress.questions.map(item => item.id)).size, 403);
-assert.equal(new Set(progress.questions.map(item => item.q.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB"))).size, 403);
+assert.equal(progress.questions.length, 773);
+assert.equal(new Set(progress.questions.map(item => item.id)).size, 773);
+assert.equal(new Set(progress.questions.map(item => item.q.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB"))).size, 773);
 const numeric = progress.byId.get(bank.tiffin.numeric[14].id);
 const state = progress.empty();
 state.attempts = [{
@@ -84,7 +84,7 @@ for (const invalid of ["07:05", "70 5", "", "123456789", 705]) {
 }
 
 const cards = window.BRIGHTLANE_FLASHCARDS;
-assert.equal(cards.length, 154);
+assert.equal(cards.length, 250);
 const examCards = cards.filter(card => card.id.startsWith("exam-card-"));
 assert.equal(examCards.length, 94);
 assert.equal(new Set(cards.map(card => card.id)).size, cards.length);
@@ -99,4 +99,4 @@ assert.ok(html.indexOf('src="progress.js"') < html.indexOf('src="app.js"'));
 for (const file of ["app.js", "progress.js", "sutton-bank.js", "flashcards.js"]) {
   assert.doesNotMatch(fs.readFileSync(path.join(root, file), "utf8"), /fetch\s*\(|XMLHttpRequest|type=["']module["']/);
 }
-console.log("PASS: 133 SET items, 24 Tiffin digit-entry and 20 unfamiliar-format items; exact select-two keys; all 30 written Maths values and 10 three-mark schemes; four passages/16 questions/eight prompts; 403 saved practice questions; and 154 unique exam-tagged recall cards.");
+console.log("PASS: 133 SET items, 24 Tiffin digit-entry and 20 unfamiliar-format items; exact select-two keys; all 30 written Maths values and 10 three-mark schemes; four new passages/32 questions, 40 visual Maths questions, 30 strategy problems and 30 writing-bank prompts; 773 saved objective questions; and 250 unique recall cards.");

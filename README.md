@@ -15,37 +15,55 @@ to any scenario. This site is not a complete national archive of 11+ papers
 and no licensed historic papers were supplied to reproduce. Use the scenarios
 as new practice, not as evidence of what appeared in a particular past exam.
 
-A standalone, responsive Maths and English study website. It has **30 lessons,
-30 worked examples and 90 lesson-practice questions**, plus **60 separate test
-questions** and **12 longer-comprehension questions**. **32 original scenarios**
-(16 per subject), with 64 explained subquestions, bring that foundation bank to
-**226 unique questions**. The school-format banks add 65 SET Maths and 68 SET
-English questions, 30 written Stage 2 Maths problems, 16 Stage 2 comprehension
-questions, 24 Tiffin-style digit-entry items and 20 unfamiliar-format Maths
-items: **449 unique question tasks across the site** (excluding eight writing
-prompts and reused worksheet items). The saved practice/progress registry
-contains **403** questions; some lesson and print-material items are presented
-outside that registry. There are **154 flashcards**: 60 general topic cards and
-94 school/exam-format cards. The Study materials library adds 30 topic revision sheets,
-30 concise subject reference cards, three original longer passages, six writing
-prompts with planning scaffolds and self-checks, and printable three-question
-worksheets for all 30 topics (the worksheet questions reuse the original lesson
-bank). A local
-evidence dashboard, saved results, targeted revision, optional timer, user-set
-study planner and validated progress backups complete the toolkit. All passages
-and questions are original. There are no accounts, adverts, runtime
-dependencies, external fonts, analytics or network requests.
+A standalone, responsive Maths and English study website with **30 topic lessons**
+(18 Maths and 12 English) and **773 registered objective questions** (371 Maths,
+402 English). It also includes self-assessed written work: 30 original Maths
+strategy problems, 30 Stage 2 Maths problems, 32 passage-response tasks (16 from
+the four new English passages), and original writing prompts. These are not
+automatically graded. The newly integrated second-wave Maths add-ons comprise
+170 tasks: 100 reviewed selected-response questions, 40 accessible visual
+questions and 30 written strategy problems, supported by six worked strategy
+lessons. No 200-task Maths expansion is claimed.
+
+English includes 200 graded vocabulary exercises (100 cloze, 50 synonym and 50
+antonym questions), 104 spelling exercises representing all 100 printed
+statutory Year 5/6 spelling-list entries and their listed alternative forms,
+four original passages with 101 evidence segments and 32 questions (16
+select-one and 16 written), 14 comprehension-type exercises, and 30 Stage 2
+writing prompts (eight existing plus 22 new). The writing workshop also has six
+additional topic prompts, six annotated paragraph pairs, six language banks and
+seven dialogue guides. The spelling source and Open Government Licence
+attribution are shown in the site.
+
+The site also has 32 original scenarios with 64 explained subquestions, 250
+flashcards, seven longer reading passages in total, printable worksheets for
+all 30 topics, topic revision sheets and reference notes. These counts describe
+different features and some question banks are included in the 773 objective
+total; they should not be added together as a single unique-task count.
+A progress dashboard, saved results, targeted revision, spaced review,
+two-correct mistake revision, dedicated 60/120-second or untimed mental-maths
+sprints, a study planner, saved writing/PEE responses and validated progress
+backups complete the toolkit. Printable blank A–E and digit-grid sheets support
+paper practice; they are not official school forms. Coverage is broad UK 11+
+Maths and English preparation, not a promise to cover every school/provider
+syllabus. All practice passages and questions are original. There are no
+accounts, adverts, runtime dependencies, external fonts, analytics or network
+requests.
 
 ## Open offline
 
 1. Download and extract the complete website ZIP, or copy this repository folder.
 2. Open **index.html** in a modern browser (Chrome, Edge, Firefox or Safari).
-3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`, `flashcards.js`, `study-materials.js`, `scenario-bank.js`, `sutton-bank.js`, `progress.js` and `app.js` together. No installation,
+3. Keep `index.html`, `styles.css`, `topics.js`, `test-bank.js`,
+   `vocabulary-bank.js`, `study-materials.js`, `scenario-bank.js`,
+   `sutton-bank.js`, `maths-bank.js`, `english-lab.js`, `maths-lab.js`,
+   `flashcards.js`, `progress.js` and `app.js` together. No installation,
    server, internet connection or service worker is required.
 
-Lessons, search, topic quizzes, mixed practice, tests, flashcards, scenario
-practice, school-format practice, exam tips and study materials work directly
-using `file://`.
+Lessons, search, the question catalogue, vocabulary/spelling, topic quizzes,
+mixed practice, full mocks, mental-maths sprints, flashcards, spaced review,
+scenario and school-format practice, exam tips, PEE comprehension and writing
+workshop all work directly using `file://`.
 JavaScript must be enabled. On mobile, use a browser that supports opening local
 HTML folders; a file manager's HTML preview may not run scripts. A desktop browser
 is the most reliable direct-file route.
@@ -110,10 +128,11 @@ papers, standardised scores or predictions of admission.
 
 ## Flashcards
 
-Choose **Flashcards** in the navigation or overview. There are 154 original
+Choose **Flashcards** in the navigation or overview. There are 250 original
 recall cards: 60 general topic cards (36 Maths and 24 English, two for each of
-the 30 lessons) and 94 additional cards tagged to SET, NWSSEE Stage 2, Tiffin
-Stage One, Tiffin Stage Two or shared recall. Every card links to a known topic.
+the 30 lessons), 94 school/exam-format cards, 70 vocabulary/spelling cards,
+20 general strategy cards and six Maths-lab strategy cards. Every card links
+to a known topic.
 Filter by exam format, subject or topic. Cards contain substantive answers and
 explanations and use prompts separate from the practice tests.
 
@@ -223,7 +242,9 @@ The app's **Exam tips** page gives paper-specific advice for SET answer-sheet
 technique, select-two, Tiffin numeric entry, written Maths, comprehension,
 creative writing, and general Maths/English methods. These are preparation
 ideas, not official instructions. Follow the exam-day directions from the
-relevant school.
+relevant school. The girls' exam guide also provides printable blank A–E
+lozenge and four-digit answer grids for paper practice; these are practice
+layouts, never official OMR forms.
 
 ## Study materials
 
@@ -234,12 +255,20 @@ methods/formulae (18 topics) and English comprehension, vocabulary, spelling,
 grammar, punctuation and writing reminders (12 topics). These are quick
 references, not a replacement for the complete linked lessons.
 
-Three original passages (at least 150 words each) each have four interactive
-comprehension questions with feedback and explanations. Their answers join the
-same saved evidence and targeted revision system as other completed practice.
-Six original story, descriptive, persuasive, article and report prompts include
-planning steps and a transparent self-check rubric. The rubric is for the
-learner to reflect on; extended writing is not automatically graded.
+Seven longer passages are available, including four new original genre
+passages with paragraph/stanza evidence highlighting, 16 select-one questions
+and 16 written-response tasks. The PEE trainer lets learners save a point,
+evidence and explanation for each written prompt, with model answers and
+practice guidance. A separate 14-question quiz teaches comprehension question
+types. Prose is not automatically graded.
+
+The writing workshop offers 30 school-format prompts (including 22 new ones),
+planning scaffolds, six annotated weaker/improved paragraph comparisons, six
+language and sentence-opener banks, seven dialogue guides, and a six-category
+self-assessment rubric saved with each draft. Self-assessment bands are for
+reflection only, not school mark schemes or automated grades. Six Maths
+strategy lessons include worked examples; 40 visual questions and 30
+multi-step written problems are also available.
 
 Choose any topic for a printable worksheet using its three original lesson
 questions. **Print worksheet & answer key** places the explanatory answer key
@@ -259,10 +288,14 @@ Topics with no completed answers show **No recorded answer evidence**. Small
 samples are explicitly uncertain. Historical best scores and self-reported
 studied lessons are kept separately from tested accuracy.
 
-**Revise mistakes** selects questions whose latest retained response is wrong
-or blank. A later correct response removes a question. It uses up to 60 questions
-per round; repeat if more remain. A result also offers revision of its wrong/blank
-answers. **Practise-again flashcards** uses saved self-ratings, not tested accuracy.
+**Revise mistakes** stores wrong or blank objective answers independently of
+the latest 100-result history, with explanations. Each unresolved question
+requires two consecutive correct objective practice answers to reach practice
+mastery; a later wrong answer reopens it. The dashboard shows the remaining
+correct retries and mastered items. Writing self-reviews and flashcard ratings
+do not award objective mastery. Revision uses up to 60 questions per round;
+repeat if more remain. **Practise-again flashcards** uses saved self-ratings,
+not tested accuracy.
 Starting revision or opening an old result replaces an unfinished test without
 recording it; normal page navigation otherwise leaves the timer running.
 
@@ -285,11 +318,14 @@ Leave the date blank until confirmed from current school/provider guidance.
 It is an exam date, not a school entry date. No official deadline is supplied.
 
 The planner suggests a flexible number of remaining topics per week, based on
-your date and checklist. It also includes self-checked guidance, registration,
-access-arrangement and exam-day preparation reminders. Completed topic checks
-are planning decisions, not mastery marks, and persist separately from lessons.
-Past dates are shown as passed rather than generating a false future schedule.
-Keep sessions short, allow rest and adjust the plan to the learner's needs.
+your date and checklist. Saved checklists include general preparation, a weekly
+study routine and exam-day reminders for timing, travel, allowed materials and
+answer-sheet rules. A parent/carer guide offers low-pressure support ideas and
+links to official school guidance; it does not make admissions predictions or
+recommend tutoring. Completed topic checks are planning decisions, not mastery
+marks, and persist separately from lessons. Past dates are shown as passed
+rather than generating a false future schedule. Keep sessions short, allow rest
+and adjust the plan to the learner's needs.
 
 ## Coverage and limits
 
@@ -329,9 +365,12 @@ change the direct-file offline capability.
 ## Development
 
 Edit `topics.js` for lessons and short practice, `test-bank.js` for the separate
-test bank, `flashcards.js` for recall cards, `study-materials.js` for reference
-notes, longer passages and writing prompts, and `scenario-bank.js` for original
-scenario contexts and linked questions. `app.js` controls
+test bank, `maths-bank.js` for the reviewed second-wave Maths set,
+`vocabulary-bank.js` for vocabulary and spelling, `english-lab.js` for passage
+and writing content, and `maths-lab.js` for visual and strategy content.
+`flashcards.js` defines recall cards, `study-materials.js` reference notes and
+original reading/writing content, and `scenario-bank.js` scenario contexts and
+linked questions. `app.js` controls
 navigation, materials, practice, tests and progress; `progress.js` defines the
 strict backup schema and evidence calculations;
 `styles.css` includes responsive,
@@ -344,6 +383,10 @@ Check content structure, answer keys and absence of remote runtime resources:
 ```sh
 node tests/content.test.cjs
 node tests/practice-tests.content.cjs
+node tests/vocabulary-bank.content.cjs
+node tests/english-lab.content.cjs
+node tests/maths-lab.content.cjs
+node tests/maths-wave2.content.cjs
 node tests/flashcards.content.cjs
 node tests/preparation.content.cjs
 node tests/study-materials.content.cjs
@@ -364,12 +407,14 @@ Run `node tests/flashcards.browser.cjs` with the same optional variables to
 check filtering, reveal/hide, navigation, shuffle, self-assessment and deck-end
 states through the offline direct-file route.
 Run `node tests/preparation.browser.cjs` with the same optional variables for
-timers, extended sets, persistent results, revision, planner and backup checks.
-Run `node tests/study-materials.browser.cjs` for materials, worksheet printing
-and comprehension interactions.
+timers, extended sets, two-correct mistake mastery, mental-maths sprints,
+persistent results, weekly/exam-day checklists, parent guidance, planner and
+backup checks. Run `node tests/study-materials.browser.cjs` for materials,
+strategy examples, PEE/evidence and question-type trainers, writing models and
+self-assessment persistence, and worksheet printing.
 Run `node tests/scenarios.browser.cjs` for subject/topic/type filtering, contextual
 answers, saved evidence, print answer keys, repeat attempts and offline responsive use.
 Run `node tests/exams.browser.cjs` to exercise the girls' guide and tips, numeric
 Tiffin answers (including leading-zero time), SET select-two scoring, NWSSEE and
 Tiffin Stage 2 written practice, self-review, coverage matrix and responsive
-offline behaviour.
+offline behaviour, A/B mock choices and printable blank answer sheets.
