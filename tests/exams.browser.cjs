@@ -16,7 +16,7 @@ async function run() {
     await page.clock.install({ time: new Date("2026-10-31T12:00:00Z") });
     await page.goto(url + "#exams");
     const bank = await page.evaluate(() => window.BRIGHTLANE_SUTTON_BANK);
-    assert.match(await page.locator("#main h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
+    assert.match(await page.locator("#main .page-header h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
     for (const id of ["exam-set", "exam-nwssee", "exam-tiffin-one", "exam-tiffin-two"]) {
       assert.equal(await page.locator("#" + id).count(), 1, id + " guide section");
     }
@@ -26,6 +26,35 @@ async function run() {
     assert.match(await page.locator("#exam-tiffin-one").textContent(), /unfamiliar formats/i);
     assert.match(await page.locator("#exam-tiffin-two").textContent(), /working is not marked/i);
     assert.match(await page.locator("#main").textContent(), /Nonsuch and Wallington Girls share.*SET.*joint NWSSEE.*Tiffin Girls' runs its own separate/i);
+    assert.equal(await page.locator('.start-school-written[data-scope="nwssee"]').count(), 4, "Both NWSSEE subjects have A/B mock choices");
+    assert.equal(await page.locator(".start-tiffin-stage-one").count(), 4, "Both Tiffin Stage One subjects have A/B mock choices");
+    assert.equal(await page.locator('.start-school-written[data-scope="tiffin-stage-two"]').count(), 4, "Both Tiffin Stage Two subjects have A/B mock choices");
+    assert.equal(await page.locator("#blank-lozenge-sheet tbody tr").count(), 40);
+    assert.equal(await page.locator("#blank-digit-sheet tbody tr").count(), 24);
+    assert.equal(await page.locator("#blank-digit-sheet .digit-boxes>span").count(), 96, "Digit sheet has four blank boxes per practice response");
+    await page.evaluate(() => {
+      window.__printCall = null;
+      window.print = () => { window.__printCall = { target: document.querySelector("#main>.print-target")?.id, active: document.body.classList.contains("printing-material") }; };
+    });
+    await page.locator('.print-blank-sheet[data-print-target="blank-lozenge-sheet"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__printCall), { target: "blank-lozenge-sheet", active: true });
+    assert.equal(await page.locator("#blank-lozenge-sheet").evaluate(section => section.hidden), true, "Print-only sheet is restored to hidden state after printing");
+    await page.locator('.print-blank-sheet[data-print-target="blank-digit-sheet"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__printCall), { target: "blank-digit-sheet", active: true });
+    await page.emulateMedia({ media: "print" });
+    await page.evaluate(() => {
+      document.body.classList.add("printing-material");
+      document.getElementById("blank-digit-sheet").hidden = false;
+      document.getElementById("blank-digit-sheet").classList.add("print-target");
+    });
+    assert.equal(await page.locator("#blank-digit-sheet").evaluate(element => getComputedStyle(element).display), "block", "Blank digit sheet is visible in the print layout");
+    assert.equal(await page.locator("#exam-set").evaluate(element => getComputedStyle(element).display), "none", "Unrelated exam content is excluded from a printed sheet");
+    await page.evaluate(() => {
+      document.body.classList.remove("printing-material");
+      document.getElementById("blank-digit-sheet").hidden = true;
+      document.getElementById("blank-digit-sheet").classList.remove("print-target");
+    });
+    await page.emulateMedia({ media: "screen" });
     if (artifacts) await page.screenshot({ path: path.join(artifacts, "girls-exam-guide.png"), fullPage: true });
     await page.locator('a[href="#exam-set"]').click();
     assert.equal(new URL(page.url()).hash, "#exam-set");
@@ -73,7 +102,7 @@ async function run() {
     assert.match(await page.locator("#test-score").textContent(), /2 \/ 24/);
     assert.match(await page.locator(".review-item").nth(2).textContent(), /0705/);
     await page.locator("#test-new").click();
-    assert.match(await page.locator("#main h1").textContent(), /Prepare for Tiffin/i);
+    assert.match(await page.locator("#main .page-header h1").textContent(), /Prepare for Tiffin/i);
 
     await page.evaluate(() => { location.hash = "sutton"; });
     await page.locator("#sutton-coverage").waitFor();
@@ -117,7 +146,7 @@ async function run() {
     assert.equal(await page.locator('[data-self-mark-index="0"]').inputValue(), "2", "Self-awarded marks survive a reload without affecting automatic accuracy");
     await page.locator(".sutton-reviewed").first().click();
     await page.locator("#sutton-leave-review").click();
-    assert.match(await page.locator("#main h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
+    assert.match(await page.locator("#main .page-header h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
     await page.evaluate(() => { location.hash = "home"; });
     await page.locator('a[href="#resume-written"]').click();
     assert.equal(await page.locator('[data-self-mark-index="0"]').inputValue(), "2", "A completed mock remains available with its self-assessment after leaving the review");
@@ -167,7 +196,7 @@ async function run() {
     assert.match(await page.locator(".sutton-mock-item").last().textContent(), /Self-check rubric — no model answer or automatic grade/);
     assert.match(await page.locator(".sutton-mock-item").last().textContent(), /Your response:.*quiet beginning/s);
     await page.locator("#sutton-leave-review").click();
-    assert.match(await page.locator("#main h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
+    assert.match(await page.locator("#main .page-header h1").textContent(), /Tiffin, Nonsuch & Wallington Girls/);
 
     for (const width of [320, 375, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });

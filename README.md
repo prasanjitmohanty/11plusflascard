@@ -41,11 +41,14 @@ all 30 topics, topic revision sheets and reference notes. These counts describe
 different features and some question banks are included in the 773 objective
 total; they should not be added together as a single unique-task count.
 A progress dashboard, saved results, targeted revision, spaced review,
-optional timers, a study planner, writing drafts and validated progress backups
-complete the toolkit. Coverage is broad UK 11+ Maths and English preparation,
-not a promise to cover every school/provider syllabus. All practice passages
-and questions are original. There are no accounts, adverts, runtime
-dependencies, external fonts, analytics or network requests.
+two-correct mistake revision, dedicated 60/120-second or untimed mental-maths
+sprints, a study planner, saved writing/PEE responses and validated progress
+backups complete the toolkit. Printable blank A–E and digit-grid sheets support
+paper practice; they are not official school forms. Coverage is broad UK 11+
+Maths and English preparation, not a promise to cover every school/provider
+syllabus. All practice passages and questions are original. There are no
+accounts, adverts, runtime dependencies, external fonts, analytics or network
+requests.
 
 ## Open offline
 
@@ -58,8 +61,9 @@ dependencies, external fonts, analytics or network requests.
    server, internet connection or service worker is required.
 
 Lessons, search, the question catalogue, vocabulary/spelling, topic quizzes,
-mixed practice, tests, flashcards, spaced review, scenario and school-format
-practice, exam tips and study materials work directly using `file://`.
+mixed practice, full mocks, mental-maths sprints, flashcards, spaced review,
+scenario and school-format practice, exam tips, PEE comprehension and writing
+workshop all work directly using `file://`.
 JavaScript must be enabled. On mobile, use a browser that supports opening local
 HTML folders; a file manager's HTML preview may not run scripts. A desktop browser
 is the most reliable direct-file route.
@@ -238,7 +242,9 @@ The app's **Exam tips** page gives paper-specific advice for SET answer-sheet
 technique, select-two, Tiffin numeric entry, written Maths, comprehension,
 creative writing, and general Maths/English methods. These are preparation
 ideas, not official instructions. Follow the exam-day directions from the
-relevant school.
+relevant school. The girls' exam guide also provides printable blank A–E
+lozenge and four-digit answer grids for paper practice; these are practice
+layouts, never official OMR forms.
 
 ## Study materials
 
@@ -249,12 +255,20 @@ methods/formulae (18 topics) and English comprehension, vocabulary, spelling,
 grammar, punctuation and writing reminders (12 topics). These are quick
 references, not a replacement for the complete linked lessons.
 
-Three original passages (at least 150 words each) each have four interactive
-comprehension questions with feedback and explanations. Their answers join the
-same saved evidence and targeted revision system as other completed practice.
-Six original story, descriptive, persuasive, article and report prompts include
-planning steps and a transparent self-check rubric. The rubric is for the
-learner to reflect on; extended writing is not automatically graded.
+Seven longer passages are available, including four new original genre
+passages with paragraph/stanza evidence highlighting, 16 select-one questions
+and 16 written-response tasks. The PEE trainer lets learners save a point,
+evidence and explanation for each written prompt, with model answers and
+practice guidance. A separate 14-question quiz teaches comprehension question
+types. Prose is not automatically graded.
+
+The writing workshop offers 30 school-format prompts (including 22 new ones),
+planning scaffolds, six annotated weaker/improved paragraph comparisons, six
+language and sentence-opener banks, seven dialogue guides, and a six-category
+self-assessment rubric saved with each draft. Self-assessment bands are for
+reflection only, not school mark schemes or automated grades. Six Maths
+strategy lessons include worked examples; 40 visual questions and 30
+multi-step written problems are also available.
 
 Choose any topic for a printable worksheet using its three original lesson
 questions. **Print worksheet & answer key** places the explanatory answer key
@@ -274,10 +288,14 @@ Topics with no completed answers show **No recorded answer evidence**. Small
 samples are explicitly uncertain. Historical best scores and self-reported
 studied lessons are kept separately from tested accuracy.
 
-**Revise mistakes** selects questions whose latest retained response is wrong
-or blank. A later correct response removes a question. It uses up to 60 questions
-per round; repeat if more remain. A result also offers revision of its wrong/blank
-answers. **Practise-again flashcards** uses saved self-ratings, not tested accuracy.
+**Revise mistakes** stores wrong or blank objective answers independently of
+the latest 100-result history, with explanations. Each unresolved question
+requires two consecutive correct objective practice answers to reach practice
+mastery; a later wrong answer reopens it. The dashboard shows the remaining
+correct retries and mastered items. Writing self-reviews and flashcard ratings
+do not award objective mastery. Revision uses up to 60 questions per round;
+repeat if more remain. **Practise-again flashcards** uses saved self-ratings,
+not tested accuracy.
 Starting revision or opening an old result replaces an unfinished test without
 recording it; normal page navigation otherwise leaves the timer running.
 
@@ -300,11 +318,14 @@ Leave the date blank until confirmed from current school/provider guidance.
 It is an exam date, not a school entry date. No official deadline is supplied.
 
 The planner suggests a flexible number of remaining topics per week, based on
-your date and checklist. It also includes self-checked guidance, registration,
-access-arrangement and exam-day preparation reminders. Completed topic checks
-are planning decisions, not mastery marks, and persist separately from lessons.
-Past dates are shown as passed rather than generating a false future schedule.
-Keep sessions short, allow rest and adjust the plan to the learner's needs.
+your date and checklist. Saved checklists include general preparation, a weekly
+study routine and exam-day reminders for timing, travel, allowed materials and
+answer-sheet rules. A parent/carer guide offers low-pressure support ideas and
+links to official school guidance; it does not make admissions predictions or
+recommend tutoring. Completed topic checks are planning decisions, not mastery
+marks, and persist separately from lessons. Past dates are shown as passed
+rather than generating a false future schedule. Keep sessions short, allow rest
+and adjust the plan to the learner's needs.
 
 ## Coverage and limits
 
@@ -386,12 +407,14 @@ Run `node tests/flashcards.browser.cjs` with the same optional variables to
 check filtering, reveal/hide, navigation, shuffle, self-assessment and deck-end
 states through the offline direct-file route.
 Run `node tests/preparation.browser.cjs` with the same optional variables for
-timers, extended sets, persistent results, revision, planner and backup checks.
-Run `node tests/study-materials.browser.cjs` for materials, worksheet printing
-and comprehension interactions.
+timers, extended sets, two-correct mistake mastery, mental-maths sprints,
+persistent results, weekly/exam-day checklists, parent guidance, planner and
+backup checks. Run `node tests/study-materials.browser.cjs` for materials,
+strategy examples, PEE/evidence and question-type trainers, writing models and
+self-assessment persistence, and worksheet printing.
 Run `node tests/scenarios.browser.cjs` for subject/topic/type filtering, contextual
 answers, saved evidence, print answer keys, repeat attempts and offline responsive use.
 Run `node tests/exams.browser.cjs` to exercise the girls' guide and tips, numeric
 Tiffin answers (including leading-zero time), SET select-two scoring, NWSSEE and
 Tiffin Stage 2 written practice, self-review, coverage matrix and responsive
-offline behaviour.
+offline behaviour, A/B mock choices and printable blank answer sheets.

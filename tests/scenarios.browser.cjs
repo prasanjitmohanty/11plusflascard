@@ -95,7 +95,7 @@ async function run() {
       }
       assert.match(await panel.locator(".quiz-complete").textContent(), /You got 2 of 2 correct/);
       if (scenario.id === "fair-badges") {
-        await panel.locator("#retry-quiz").click();
+        await panel.locator(".retry-quiz").click();
         assert.match(await panel.locator(".quiz-meta").textContent(), /Question 1 of 2/);
         for (const question of scenario.questions) {
           await panel.locator(`input[value="${question.answer}"]`).check();

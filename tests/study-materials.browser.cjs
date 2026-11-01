@@ -17,6 +17,12 @@ async function run() {
     assert.equal(await page.locator("#reference-section > .reference-grid").count(), 2);
     assert.equal(await page.locator("#reference-section > .reference-grid").nth(0).locator(".reference-card").count(), 18);
     assert.equal(await page.locator("#reference-section > .reference-grid").nth(1).locator(".reference-card").count(), 12);
+    assert.equal(await page.locator("#strategy-section .writing-card").count(), 6, "All six worked strategy lessons are reachable");
+    for (const lesson of await page.locator("#strategy-section .writing-card").all()) {
+      assert.match(await lesson.textContent(), /Worked example/);
+      assert.match(await lesson.textContent(), /Final answer:/);
+      assert.ok(await lesson.locator("ol").count() >= 2, "Strategy and worked-example steps are displayed");
+    }
     await page.locator("#revision-topic").selectOption("fractions");
     assert.match(await page.locator("#revision-sheet").textContent(), /Fraction/);
     assert.match(await page.locator("#revision-sheet").textContent(), /common denominator/i);
@@ -78,12 +84,43 @@ async function run() {
     assert.equal(await page.locator("#stage-two-writing-prompts .writing-card").count(), 30);
     assert.equal(await page.locator("#topic-writing-prompts .writing-card").count(), 6);
     assert.equal(await page.locator("#writing-section [data-writing-draft]").count(), 36);
+    assert.equal(await page.locator("#model-paragraphs .writing-card").count(), 6, "All six weaker/improved writing comparisons are visible");
+    assert.equal(await page.locator("#language-banks .writing-card").count(), 6, "All six language banks are visible");
+    assert.equal(await page.locator("#dialogue-guide .writing-card").count(), 7, "All seven dialogue rules are visible");
+    assert.equal(await page.locator("#stage-two-writing-prompts [data-writing-band]").count(), 180, "Every Tiffin/NWSSEE-style prompt has six self-assessment controls");
+    assert.equal(await page.locator("#pee-section .pee-passage").count(), 4);
+    assert.equal(await page.locator("#pee-section .pee-question").count(), 16, "Every written question from the four segmented passages has a PEE form");
+    const pee = page.locator("#pee-section .pee-question").first();
+    const peeId = await pee.getAttribute("data-pee-question");
+    await pee.locator('[data-reading-field="point"]').fill("The narrator is cautious.");
+    await pee.locator('[data-reading-field="evidence"]').fill("A relevant phrase from the passage.");
+    await pee.locator('[data-reading-field="explain"]').fill("This detail supports the point because it shows hesitation.");
+    await pee.locator("[data-highlight-evidence]").first().click();
+    assert.equal(await pee.locator("[data-highlight-evidence]").first().getAttribute("aria-pressed"), "true", "The passage evidence control highlights within its own passage instance");
+    const rubric = page.locator("#stage-two-writing-prompts [data-writing-band]").first();
+    const rubricPrompt = await rubric.getAttribute("data-writing-band");
+    await rubric.selectOption("3");
+    const duplicateIds = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll("[id]")].map(element => element.id);
+      return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+    });
+    assert.equal(duplicateIds.length, 0, "Writing and PEE controls have unique DOM IDs: " + duplicateIds.join(", "));
     const savedPromptId = await page.evaluate(() => window.BRIGHTLANE_SUTTON_BANK.stageTwo.writing[0].id);
     await page.locator(`[data-writing-draft="${savedPromptId}"]`).fill("A saved writing draft with an opening, a change and a thoughtful ending.");
     await page.locator('[data-writing-draft="study-writing-001"]').fill("A saved topic writing draft with a clear beginning and ending.");
     await page.reload();
     assert.equal(await page.locator(`[data-writing-draft="${savedPromptId}"]`).inputValue(), "A saved writing draft with an opening, a change and a thoughtful ending.", "Stage 2 writing drafts survive reloads");
     assert.equal(await page.locator('[data-writing-draft="study-writing-001"]').inputValue(), "A saved topic writing draft with a clear beginning and ending.", "The original six writing prompts also save drafts");
+    assert.equal(await page.locator(`[data-writing-band="${rubricPrompt}"][data-band-category="content"]`).inputValue(), "3", "Writing self-assessment survives reload");
+    assert.equal(await page.locator(`[data-pee-question="${peeId}"] [data-reading-field="point"]`).inputValue(), "The narrator is cautious.", "PEE responses survive reload");
+    assert.equal(await page.locator(`[data-pee-question="${peeId}"] [data-reading-field="evidence"]`).inputValue(), "A relevant phrase from the passage.");
+    await page.locator("#start-type-practice").click();
+    assert.equal(await page.locator("#type-question-quiz").isVisible(), true, "The question-type identifier quiz is reachable");
+    assert.equal(await page.locator("#type-question-quiz #answer-form").count(), 1);
+    assert.ok(await page.evaluate(() => {
+      const state = JSON.parse(localStorage.getItem("brightlane-progress-v1"));
+      return state.writingBands && state.readingDrafts;
+    }), "Rubric and reading draft state are stored in the local progress backup");
     await page.locator("#worksheet-topic").selectOption("punctuation");
     assert.equal(await page.locator("#worksheet-output .worksheet-questions>li").count(), 3);
     assert.match(await page.locator("#worksheet-output").textContent(), /Answer key & explanations/);
@@ -123,7 +160,7 @@ async function run() {
       const attempts = JSON.parse(localStorage.getItem("brightlane-progress-v1")).attempts;
       return attempts.filter(attempt => attempt.answers.every((answer, i) => p.byId.get(attempt.questionIds[i]).answer === answer)).length;
     }), 7);
-    console.log("PASS: topic revision selection, 30 linked references, seven reading quizzes/28 saved answers, evidence highlighting, persistent drafts for all 30 prompts, writing rubrics, 30-topic worksheets, print isolation and separate answer-key page, responsive direct-file offline use and zero external requests/page errors.");
+    console.log("PASS: topic revision selection, 30 linked references, seven reading quizzes/28 saved answers, type and PEE practice, passage evidence controls, persistent writing drafts and self-assessment, six model pairs/language banks, seven dialogue guides, 30-topic worksheets, print isolation and separate answer-key page, responsive direct-file offline use and zero external requests/page errors.");
   } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

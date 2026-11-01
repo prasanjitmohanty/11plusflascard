@@ -79,6 +79,10 @@ async function run() {
     }), 0, "A visual used in the catalogue and its active quiz has unique SVG IDs");
     await route("#dashboard");
     await route("#planner");
+    assert.equal(await page.locator('[data-check^="week-"]').count(), 5, "Weekly checklist has five practice/reminder items");
+    assert.equal(await page.locator('[data-check^="exam-"]').count(), 6, "Exam-day checklist adds five detailed reminders alongside the general plan check");
+    assert.match(await page.locator("#main").textContent(), /parents and carers: support without tutoring/i);
+    assert.equal(await page.locator(".lesson-block").filter({ hasText: "support without tutoring" }).locator("a[target=_blank]").count(), 3, "Parent guidance links to current official school information");
     for (const invalid of ["2027-02-29", "2027-02-30", "2027-04-31", "2028-01-01", "2027-1-2", "bad"]) {
       await page.locator("#planner-date").fill(invalid);
       await page.locator("#planner-form button").click();
@@ -92,11 +96,15 @@ async function run() {
     await page.locator("#planner-form button").click();
     assert.match(await page.locator("#planner-status").textContent(), /saved/);
     await page.locator('[data-check="guidance"]').check();
+    await page.locator('[data-check="week-maths"]').check();
+    await page.locator('[data-check="exam-kit"]').check();
     await page.locator('[data-topic="fractions"]').check();
     await page.reload();
     assert.equal(await page.locator("#planner-date").inputValue(), "2027-09-04");
     assert.equal(await page.locator('[data-topic="fractions"]').isChecked(), true);
     assert.equal(await page.locator('[data-check="guidance"]').isChecked(), true);
+    assert.equal(await page.locator('[data-check="week-maths"]').isChecked(), true);
+    assert.equal(await page.locator('[data-check="exam-kit"]').isChecked(), true);
     await route("#flashcards");
     await page.locator("#card-reveal").click();
     await page.locator("#card-again").click();
@@ -141,13 +149,45 @@ async function run() {
     await submit();
     assert.match(await page.locator("#test-score").textContent(), /19 \/ 19.*100%/);
     await route("#dashboard");
-    assert.equal(await page.locator("#revise-mistakes").isDisabled(), true, "Later correct revision removes mistakes");
+    assert.equal(await page.locator("#revise-mistakes").isDisabled(), false, "One correct retry does not remove a mistake");
+    assert.match(await page.locator("#revise-mistakes").evaluate(button => button.closest(".lesson-block").querySelector(".evidence-list").textContent), /1 correct retry remaining/);
     assert.equal((await stored()).attempts.length, 2);
+    await page.locator("#revise-mistakes").click();
+    assert.equal(await page.locator(".question-jump").count(), 19);
+    for (let i = 0; i < 19; i++) {
+      const q = await current();
+      if (q.format === "numeric-entry") await page.locator("#numeric-answer-input").fill(q.answer);
+      else if (Array.isArray(q.answer)) {
+        for (const answer of q.answer) await page.locator(`#test-form input[value="${answer}"]`).check();
+      } else await page.locator(`input[value="${q.answer}"]`).check();
+      if (i < 18) await page.locator("#test-next").click();
+    }
+    await submit();
+    assert.match(await page.locator("#test-score").textContent(), /19 \/ 19.*100%/);
+    await route("#dashboard");
+    assert.equal(await page.locator("#revise-mistakes").isDisabled(), true, "Two consecutive correct objective retries complete practice mastery");
+    assert.match(await page.locator("#revise-mistakes").evaluate(button => button.closest(".lesson-block").querySelector(".evidence-list").textContent), /reached practice mastery/);
+    assert.equal((await stored()).attempts.length, 3);
     await page.locator("#revise-cards").click();
     assert.match(await page.locator(".card-study-bar").textContent(), /of 1/);
     await page.locator("#card-reveal").click(); await page.locator("#card-known").click();
     await route("#dashboard");
     assert.equal(await page.locator("#revise-cards").isDisabled(), true);
+    await route("#sprints");
+    assert.equal(await page.locator(".start-mental-sprint").count(), 3, "Timed and untimed sprint modes are available");
+    await page.locator('.start-mental-sprint[data-duration="0"]').click();
+    await page.locator("#mental-sprint-answer").fill("0");
+    await page.locator("#mental-sprint-form").evaluate(form => form.requestSubmit());
+    assert.match(await page.locator("#mental-sprint-panel").textContent(), /Answer:/, "A sprint answer receives feedback and an explanation");
+    await page.locator("#mental-sprint-next").click();
+    await page.locator("#mental-sprint-finish").click();
+    assert.match(await page.locator("#mental-sprint-panel").textContent(), /SPRINT COMPLETE/);
+    assert.match(await page.locator("#mental-sprint-history").textContent(), /Untimed/);
+    assert.equal((await stored()).sprintHistory.at(-1).duration, 0, "Untimed sprint results persist");
+    assert.equal((await stored()).sprintBests["0"], (await stored()).sprintHistory.at(-1).correct, "Personal best is persisted separately from the capped accuracy history");
+    await route("#home");
+    await route("#sprints");
+    assert.match(await page.locator(".stats .stat").nth(2).textContent(), /Untimed best correct1 saved sprints/);
     // Extended modes are still balanced/unique, with actual blank scoring.
     await route("#tests");
     if (await page.locator("#test-new").count()) await page.locator("#test-new").click();
@@ -198,6 +238,13 @@ async function run() {
     await page.locator("#sutton-leave-review").click();
     await route("#materials");
     await page.locator('[data-writing-draft="study-writing-001"]').fill("Backup keeps this original writing draft.");
+    const savedBandPrompt = await page.evaluate(() => window.BRIGHTLANE_SUTTON_BANK.stageTwo.writing[0].id);
+    await page.locator(`[data-writing-band="${savedBandPrompt}"][data-band-category="content"]`).selectOption("4");
+    const savedPeeId = await page.evaluate(() => window.BRIGHTLANE_ENGLISH_LAB.passages[0].questions.find(question => question.format === "written").id);
+    const savedPee = page.locator(`[data-pee-question="${savedPeeId}"]`);
+    await savedPee.locator('[data-reading-field="point"]').fill("The character is determined.");
+    await savedPee.locator('[data-reading-field="evidence"]').fill("The character continues despite difficulty.");
+    await savedPee.locator('[data-reading-field="explain"]').fill("This action demonstrates determination.");
     await route("#dashboard");
     if (artifacts) await page.screenshot({ path: path.join(artifacts, "brightlane-toolkit.png"), fullPage: true });
     // Export/import validates before confirmation; round trip retains all fields.
@@ -212,6 +259,9 @@ async function run() {
     assert.equal(exported.writtenDraft.selfMarks[8], 1);
     assert.equal(exported.writtenDraft.selfMarks[9], 0);
     assert.equal(exported.writingDrafts["study-writing-001"], "Backup keeps this original writing draft.");
+    assert.equal(exported.writingBands[savedBandPrompt].content, 4);
+    assert.deepEqual(exported.readingDrafts[savedPeeId], { point: "The character is determined.", evidence: "The character continues despite difficulty.", explain: "This action demonstrates determination." });
+    assert.equal(exported.sprintHistory.at(-1).duration, 0);
     async function importPayload(payload) {
       await page.locator("#import-progress").setInputFiles({ name: "progress.json", mimeType: "application/json", buffer: Buffer.from(typeof payload === "string" ? payload : JSON.stringify(payload)) });
     }
@@ -246,6 +296,8 @@ async function run() {
     await page.locator("#sutton-leave-review").click();
     await route("#materials");
     assert.equal(await page.locator('[data-writing-draft="study-writing-001"]').inputValue(), "Backup keeps this original writing draft.");
+    assert.equal(await page.locator(`[data-writing-band="${savedBandPrompt}"][data-band-category="content"]`).inputValue(), "4");
+    assert.equal(await page.locator(`[data-pee-question="${savedPeeId}"] [data-reading-field="explain"]`).inputValue(), "This action demonstrates determination.");
     for (const width of [320, 375, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       for (const hash of ["#home", "#dashboard", "#planner", "#tests", "#flashcards"]) {
@@ -275,7 +327,7 @@ async function run() {
     const blockedDownloadEvent = blocked.waitForEvent("download");
     await blocked.locator("#export-progress").click();
     assert.ok(await (await blockedDownloadEvent).path(), "Visit-only data can be backed up");
-    console.log("PASS: optional timer expiry on confirmation/other page, no double submission, extended subject/mixed modes, persistent result review/weaknesses, targeted correction, saved card ratings, planner valid/invalid/past dates, export/import roundtrip and strict errors/cancel/reset, storage-unavailable export, responsive toolkit and offline networking; no page errors.");
+    console.log("PASS: two-correct mistake mastery, untimed mental-maths feedback/history, optional timer expiry on confirmation/other page, no double submission, extended subject/mixed modes, persistent result review/weaknesses, targeted correction, saved card ratings, planner valid/invalid/past dates, export/import roundtrip and strict errors/cancel/reset, storage-unavailable export, responsive toolkit and offline networking; no page errors.");
   } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

@@ -58,7 +58,7 @@ async function run() {
         checked++;
       }
       assert.match(await page.locator(".quiz-complete h2").textContent(), /3 of 3/);
-      await page.locator("#retry-quiz").click();
+      await page.locator(".retry-quiz").click();
       for (const q of t.questions) {
         await page.locator(`input[value="${(q.answer + 1) % 4}"]`).check();
         await page.locator("#check-answer").click();
